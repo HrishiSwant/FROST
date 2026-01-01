@@ -1,4 +1,5 @@
 import os
+import uvicorn
 import pickle
 import requests
 from dotenv import load_dotenv
@@ -161,3 +162,7 @@ def check_fake_news(data: NewsInput):
         "source_credibility": source_score,
         "explanation": explanation
     }
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
