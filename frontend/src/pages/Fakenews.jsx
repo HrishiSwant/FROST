@@ -28,7 +28,7 @@ function FakeNews() {
       console.log("Sending payload:", payload);
 
       const response = await fetch(
-        "http://localhost:8000/api/fake-news/check",
+        "https://frost-7sn1.onrender.com/api/fake-news/check",
         {
           method: "POST",
           headers: {
@@ -151,3 +151,4 @@ function FakeNews() {
 }
 
 export default FakeNews;
+
