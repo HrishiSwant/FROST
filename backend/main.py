@@ -1,10 +1,9 @@
 import os
-import uvicorn
 import pickle
 import requests
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -36,14 +35,66 @@ with open("vectorizer.pkl", "rb") as f:
     vectorizer = pickle.load(f)
 
 # -----------------------
-# Input Schema
+# TEMP USER STORE (DEMO)
+# -----------------------
+users_db = []
+
+# -----------------------
+# Schemas
 # -----------------------
 class NewsInput(BaseModel):
     text: str | None = None
     url: str | None = None
 
+class SignupInput(BaseModel):
+    name: str
+    email: str
+    password: str
+
+class LoginInput(BaseModel):
+    email: str
+    password: str
+
 # -----------------------
-# Generic Web Scraping (non-NYTimes)
+# AUTH APIs
+# -----------------------
+@app.post("/api/signup")
+def signup(data: SignupInput):
+    for user in users_db:
+        if user["email"] == data.email:
+            raise HTTPException(status_code=400, detail="User already exists")
+
+    user = {
+        "name": data.name,
+        "email": data.email,
+        "password": data.password  # demo only (no hashing)
+    }
+    users_db.append(user)
+
+    return {
+        "token": "demo-token",
+        "user": {
+            "name": data.name,
+            "email": data.email
+        }
+    }
+
+@app.post("/api/login")
+def login(data: LoginInput):
+    for user in users_db:
+        if user["email"] == data.email and user["password"] == data.password:
+            return {
+                "token": "demo-token",
+                "user": {
+                    "name": user["name"],
+                    "email": user["email"]
+                }
+            }
+
+    raise HTTPException(status_code=401, detail="Invalid email or password")
+
+# -----------------------
+# Scraping (Non-NYTimes)
 # -----------------------
 def scrape_article(url: str) -> str:
     try:
@@ -57,21 +108,17 @@ def scrape_article(url: str) -> str:
         return ""
 
 # -----------------------
-# NYTimes Article Search API
+# NYTimes API
 # -----------------------
 def fetch_from_nytimes(url: str) -> str:
     if not NYT_API_KEY:
         return ""
 
     try:
-        # Extract keywords from URL
         keywords = url.split("/")[-1].replace("-", " ")
 
         api_url = "https://api.nytimes.com/svc/search/v2/articlesearch.json"
-        params = {
-            "q": keywords,
-            "api-key": NYT_API_KEY
-        }
+        params = {"q": keywords, "api-key": NYT_API_KEY}
 
         res = requests.get(api_url, params=params, timeout=8)
         data = res.json()
@@ -81,32 +128,25 @@ def fetch_from_nytimes(url: str) -> str:
             return ""
 
         article = docs[0]
-        text_parts = [
+        parts = [
             article.get("headline", {}).get("main", ""),
             article.get("abstract", ""),
             article.get("lead_paragraph", "")
         ]
 
-        return " ".join(t for t in text_parts if t).strip()
-
-    except Exception as e:
-        print("NYTimes API error:", e)
+        return " ".join(p for p in parts if p).strip()
+    except:
         return ""
 
 # -----------------------
-# API Endpoint
+# FAKE NEWS API
 # -----------------------
 @app.post("/api/fake-news/check")
 def check_fake_news(data: NewsInput):
 
     content = ""
 
-    # -----------------------
-    # URL handling
-    # -----------------------
     if data.url:
-
-        # NYTimes special handling
         if "nytimes.com" in data.url:
             content = fetch_from_nytimes(data.url)
         else:
@@ -119,10 +159,6 @@ def check_fake_news(data: NewsInput):
                 "source_credibility": "UNKNOWN",
                 "explanation": "Unable to extract article content"
             }
-
-    # -----------------------
-    # Direct Text
-    # -----------------------
     else:
         content = data.text or ""
 
@@ -134,21 +170,12 @@ def check_fake_news(data: NewsInput):
             "explanation": "No text provided"
         }
 
-    # -----------------------
-    # ML Prediction
-    # -----------------------
     vec = vectorizer.transform([content])
     prediction = model.predict(vec)[0]
     probability = model.predict_proba(vec)[0].max()
 
-    # -----------------------
-    # Source Credibility
-    # -----------------------
     trusted_sources = ["bbc.com", "cnn.com", "ndtv.com", "reuters.com", "nytimes.com"]
-    source_score = (
-        "HIGH" if data.url and any(s in data.url for s in trusted_sources)
-        else "LOW"
-    )
+    source_score = "HIGH" if data.url and any(s in data.url for s in trusted_sources) else "LOW"
 
     explanation = (
         "Language patterns resemble known fake news styles"
@@ -162,7 +189,3 @@ def check_fake_news(data: NewsInput):
         "source_credibility": source_score,
         "explanation": explanation
     }
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-
