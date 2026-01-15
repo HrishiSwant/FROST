@@ -9,9 +9,6 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 
-# ----------------------------
-# Load Environment Variables
-# ----------------------------
 load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -23,31 +20,24 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ----------------------------
-# FastAPI
-# ----------------------------
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # later lock to Vercel URL
-    allow_credentials=True,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ----------------------------
-# Load ML Models
-# ----------------------------
+# Load ML
 with open("model.pkl", "rb") as f:
     model = pickle.load(f)
 
 with open("vectorizer.pkl", "rb") as f:
     vectorizer = pickle.load(f)
 
-# ----------------------------
-# Schemas
-# ----------------------------
+# ------------------- Schemas -------------------
+
 class SignupInput(BaseModel):
     name: str
     email: str
@@ -61,9 +51,8 @@ class NewsInput(BaseModel):
     text: str | None = None
     url: str | None = None
 
-# ----------------------------
-# AUTH – SIGNUP
-# ----------------------------
+# ------------------- AUTH -------------------
+
 @app.post("/api/signup")
 def signup(data: SignupInput):
 
@@ -88,14 +77,10 @@ def signup(data: SignupInput):
         }
     }
 
-# ----------------------------
-# AUTH – LOGIN
-# ----------------------------
 @app.post("/api/login")
 def login(data: LoginInput):
 
     res = supabase.table("user").select("*").eq("email", data.email).execute()
-
     if not res.data:
         raise HTTPException(status_code=401, detail="Invalid email")
 
@@ -111,77 +96,48 @@ def login(data: LoginInput):
         }
     }
 
-# ----------------------------
-# Scraping
-# ----------------------------
+# ------------------- Fake News -------------------
+
 def scrape_article(url):
     try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        res = requests.get(url, headers=headers, timeout=8)
+        res = requests.get(url, timeout=8)
         soup = BeautifulSoup(res.text, "html.parser")
         return " ".join(p.text for p in soup.find_all("p"))
     except:
         return ""
 
-# ----------------------------
-# NYTimes API
-# ----------------------------
 def fetch_from_nytimes(url):
     if not NYT_API_KEY:
         return ""
-
     try:
         keywords = url.split("/")[-1].replace("-", " ")
-
         res = requests.get(
             "https://api.nytimes.com/svc/search/v2/articlesearch.json",
-            params={"q": keywords, "api-key": NYT_API_KEY},
-            timeout=8
+            params={"q": keywords, "api-key": NYT_API_KEY}
         )
-
-        docs = res.json().get("response", {}).get("docs", [])
+        docs = res.json()["response"]["docs"]
         if not docs:
             return ""
-
-        article = docs[0]
-        parts = [
-            article.get("headline", {}).get("main", ""),
-            article.get("abstract", ""),
-            article.get("lead_paragraph", "")
-        ]
-
-        return " ".join(p for p in parts if p)
-
+        return docs[0]["abstract"]
     except:
         return ""
 
-# ----------------------------
-# Fake News Detection
-# ----------------------------
 @app.post("/api/fake-news/check")
-def check_fake_news(data: NewsInput):
-
-    content = ""
+def check(data: NewsInput):
 
     if data.url:
-        if "nytimes.com" in data.url:
-            content = fetch_from_nytimes(data.url)
-        else:
-            content = scrape_article(data.url)
+        content = fetch_from_nytimes(data.url) if "nytimes.com" in data.url else scrape_article(data.url)
     else:
-        content = data.text or ""
+        content = data.text
 
-    if not content.strip():
-        return {
-            "verdict": "UNKNOWN",
-            "confidence": 0
-        }
+    if not content:
+        return {"verdict": "UNKNOWN", "confidence": 0}
 
     vec = vectorizer.transform([content])
-    prediction = model.predict(vec)[0]
-    probability = model.predict_proba(vec)[0].max()
+    pred = model.predict(vec)[0]
+    prob = model.predict_proba(vec)[0].max()
 
     return {
-        "verdict": "REAL" if prediction == 1 else "FAKE",
-        "confidence": round(probability * 100, 2)
+        "verdict": "REAL" if pred == 1 else "FAKE",
+        "confidence": round(prob * 100, 2)
     }
