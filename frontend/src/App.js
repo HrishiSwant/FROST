@@ -35,59 +35,91 @@ function App() {
      AUTH API
   ========================= */
 
-  const handleLogin = async () => {
-    setError("");
-    const e = validateEmail(email);
-    const p = validatePassword(password);
-    if (e) return setEmailError(e);
-    if (p) return setError(p);
+ const handleLogin = async () => {
+  setError("");
+  setEmailError("");
 
-    try {
-      const res = await fetch(`${API_BASE}/api/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
-      });
-      const data = await res.json();
+  const emailMsg = validateEmail(email);
+  if (emailMsg) return setEmailError(emailMsg);
 
-      if (!res.ok) throw new Error(data.detail);
+  const passwordMsg = validatePassword(password);
+  if (passwordMsg) return setError(passwordMsg);
 
-      setLoggedInUser(data.user);
-      setCurrentView("dashboard");
-    } catch {
-      setError("Invalid login");
+  try {
+    const response = await fetch(`${API_BASE}/api/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        email: email.trim(),
+        password: password
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      setError(data.detail || "Login failed");
+      return;
     }
-  };
 
+    localStorage.setItem("token", data.token);
+    setLoggedInUser(data.user);
+    setCurrentView("dashboard");
+
+    setEmail("");
+    setPassword("");
+
+  } catch (err) {
+    setError("Server unreachable");
+  }
+};
   const handleSignup = async () => {
-    setError("");
-    const e = validateEmail(email);
-    const p = validatePassword(password);
-    if (!name) return setError("Enter name");
-    if (e) return setEmailError(e);
-    if (p) return setError(p);
+  setError("");
+  setEmailError("");
 
-    try {
-      const res = await fetch(`${API_BASE}/api/signup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password })
-      });
-      const data = await res.json();
+  const nameMsg = validateName(name);
+  if (nameMsg) return setError(nameMsg);
 
-      if (!res.ok) throw new Error(data.detail);
+  const emailMsg = validateEmail(email);
+  if (emailMsg) return setEmailError(emailMsg);
 
-      setLoggedInUser(data.user);
-      setCurrentView("dashboard");
-    } catch {
-      setError("Signup failed");
+  const passwordMsg = validatePassword(password);
+  if (passwordMsg) return setError(passwordMsg);
+
+  try {
+    const response = await fetch(`${API_BASE}/api/signup`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        name: name.trim(),
+        email: email.trim(),
+        password: password
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      setError(data.detail || "Signup failed");
+      return;
     }
-  };
 
-  const handleLogout = () => {
-    setLoggedInUser(null);
-    setCurrentView("login");
-  };
+    localStorage.setItem("token", data.token);
+    setLoggedInUser(data.user);
+    setCurrentView("dashboard");
+
+    setName("");
+    setEmail("");
+    setPassword("");
+
+  } catch (err) {
+    setError("Server unreachable");
+  }
+};
 
   /* =========================
      FAKE NEWS PAGE
