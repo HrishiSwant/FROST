@@ -6,12 +6,18 @@ from bs4 import BeautifulSoup
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+from supabase import create_client
 
 # -----------------------
 # Load ENV
 # -----------------------
 load_dotenv()
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 NYT_API_KEY = os.getenv("NYT_API_KEY")
+
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 app = FastAPI()
 
@@ -35,11 +41,6 @@ with open("vectorizer.pkl", "rb") as f:
     vectorizer = pickle.load(f)
 
 # -----------------------
-# TEMP USER STORE (DEMO)
-# -----------------------
-users_db = []
-
-# -----------------------
 # Schemas
 # -----------------------
 class NewsInput(BaseModel):
@@ -56,136 +57,110 @@ class LoginInput(BaseModel):
     password: str
 
 # -----------------------
-# AUTH APIs
+# AUTH: SIGNUP
 # -----------------------
 @app.post("/api/signup")
 def signup(data: SignupInput):
-    for user in users_db:
-        if user["email"] == data.email:
-            raise HTTPException(status_code=400, detail="User already exists")
+    try:
+        auth = supabase.auth.sign_up({
+            "email": data.email,
+            "password": data.password
+        })
 
-    user = {
-        "name": data.name,
-        "email": data.email,
-        "password": data.password  # demo only (no hashing)
-    }
-    users_db.append(user)
+        if not auth.user:
+            raise HTTPException(status_code=400, detail="Signup failed")
 
-    return {
-        "token": "demo-token",
-        "user": {
+        # store profile
+        supabase.table("user").insert({
+            "id": auth.user.id,
             "name": data.name,
             "email": data.email
-        }
-    }
+        }).execute()
 
-@app.post("/api/login")
-def login(data: LoginInput):
-    for user in users_db:
-        if user["email"] == data.email and user["password"] == data.password:
-            return {
-                "token": "demo-token",
-                "user": {
-                    "name": user["name"],
-                    "email": user["email"]
-                }
+        return {
+            "token": auth.session.access_token,
+            "user": {
+                "id": auth.user.id,
+                "name": data.name,
+                "email": data.email
             }
+        }
 
-    raise HTTPException(status_code=401, detail="Invalid email or password")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 # -----------------------
-# Scraping (Non-NYTimes)
+# AUTH: LOGIN
+# -----------------------
+@app.post("/api/login")
+def login(data: LoginInput):
+    try:
+        auth = supabase.auth.sign_in_with_password({
+            "email": data.email,
+            "password": data.password
+        })
+
+        if not auth.user:
+            raise HTTPException(status_code=401, detail="Invalid login")
+
+        profile = supabase.table("user").select("*").eq("id", auth.user.id).execute()
+
+        return {
+            "token": auth.session.access_token,
+            "user": profile.data[0]
+        }
+
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+# -----------------------
+# Scraping
 # -----------------------
 def scrape_article(url: str) -> str:
     try:
         headers = {"User-Agent": "Mozilla/5.0"}
         res = requests.get(url, headers=headers, timeout=8)
-        res.raise_for_status()
         soup = BeautifulSoup(res.text, "html.parser")
-        paragraphs = soup.find_all("p")
-        return " ".join(p.get_text() for p in paragraphs).strip()
+        return " ".join(p.text for p in soup.find_all("p"))
     except:
         return ""
 
 # -----------------------
-# NYTimes API
+# NYTimes
 # -----------------------
 def fetch_from_nytimes(url: str) -> str:
-    if not NYT_API_KEY:
-        return ""
-
     try:
         keywords = url.split("/")[-1].replace("-", " ")
-
         api_url = "https://api.nytimes.com/svc/search/v2/articlesearch.json"
-        params = {"q": keywords, "api-key": NYT_API_KEY}
-
-        res = requests.get(api_url, params=params, timeout=8)
-        data = res.json()
-
-        docs = data.get("response", {}).get("docs", [])
+        res = requests.get(api_url, params={"q": keywords, "api-key": NYT_API_KEY})
+        docs = res.json().get("response", {}).get("docs", [])
         if not docs:
             return ""
-
-        article = docs[0]
-        parts = [
-            article.get("headline", {}).get("main", ""),
-            article.get("abstract", ""),
-            article.get("lead_paragraph", "")
-        ]
-
-        return " ".join(p for p in parts if p).strip()
+        a = docs[0]
+        return f"{a['headline']['main']} {a['abstract']} {a['lead_paragraph']}"
     except:
         return ""
 
 # -----------------------
-# FAKE NEWS API
+# FAKE NEWS
 # -----------------------
 @app.post("/api/fake-news/check")
 def check_fake_news(data: NewsInput):
-
     content = ""
 
     if data.url:
-        if "nytimes.com" in data.url:
-            content = fetch_from_nytimes(data.url)
-        else:
-            content = scrape_article(data.url)
-
-        if not content:
-            return {
-                "verdict": "UNKNOWN",
-                "confidence": 0,
-                "source_credibility": "UNKNOWN",
-                "explanation": "Unable to extract article content"
-            }
+        content = fetch_from_nytimes(data.url) if "nytimes.com" in data.url else scrape_article(data.url)
     else:
         content = data.text or ""
 
     if not content.strip():
-        return {
-            "verdict": "UNKNOWN",
-            "confidence": 0,
-            "source_credibility": "UNKNOWN",
-            "explanation": "No text provided"
-        }
+        return {"verdict": "UNKNOWN", "confidence": 0}
 
     vec = vectorizer.transform([content])
     prediction = model.predict(vec)[0]
-    probability = model.predict_proba(vec)[0].max()
-
-    trusted_sources = ["bbc.com", "cnn.com", "ndtv.com", "reuters.com", "nytimes.com"]
-    source_score = "HIGH" if data.url and any(s in data.url for s in trusted_sources) else "LOW"
-
-    explanation = (
-        "Language patterns resemble known fake news styles"
-        if prediction == 0
-        else "Language patterns align with verified journalism"
-    )
+    prob = model.predict_proba(vec)[0].max()
 
     return {
         "verdict": "REAL" if prediction == 1 else "FAKE",
-        "confidence": round(probability * 100, 2),
-        "source_credibility": source_score,
-        "explanation": explanation
+        "confidence": round(prob * 100, 2)
     }
