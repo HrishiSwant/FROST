@@ -1,29 +1,24 @@
 import os
 import pickle
+import bcrypt
 import requests
+from supabase import create_client
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-from supabase import create_client
 
-# -----------------------
-# Load ENV
-# -----------------------
 load_dotenv()
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
-NYT_API_KEY = os.getenv("NYT_API_KEY")
+SUPABASE_URL = os.getenv("https://tgwkyckfhsegcssgqlup.supabase.co")
+SUPABASE_KEY = os.getenv("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRnd2t5Y2tmaHNlZ2Nzc2dxbHVwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2ODQ1NjIyMywiZXhwIjoyMDg0MDMyMjIzfQ.oXyNqr86jLNi3iiLLkIyoUPKTF-5L484dMafD2GewFg")
+NYT_API_KEY = os.getenv("KP4T4XjrcKJTtIDXJbIZa9YdGAVjF4a1Pf7XFRFBzBUPZBZE")
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 app = FastAPI()
 
-# -----------------------
-# CORS
-# -----------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -31,21 +26,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# -----------------------
-# Load ML Model
-# -----------------------
+# Load ML
 with open("model.pkl", "rb") as f:
     model = pickle.load(f)
 
 with open("vectorizer.pkl", "rb") as f:
     vectorizer = pickle.load(f)
 
-# -----------------------
-# Schemas
-# -----------------------
-class NewsInput(BaseModel):
-    text: str | None = None
-    url: str | None = None
+# ------------------- Schemas -------------------
 
 class SignupInput(BaseModel):
     name: str
@@ -56,111 +44,93 @@ class LoginInput(BaseModel):
     email: str
     password: str
 
-# -----------------------
-# AUTH: SIGNUP
-# -----------------------
+class NewsInput(BaseModel):
+    text: str | None = None
+    url: str | None = None
+
+# ------------------- AUTH -------------------
+
 @app.post("/api/signup")
 def signup(data: SignupInput):
-    try:
-        auth = supabase.auth.sign_up({
-            "email": data.email,
-            "password": data.password
-        })
 
-        if not auth.user:
-            raise HTTPException(status_code=400, detail="Signup failed")
+    existing = supabase.table("user").select("*").eq("email", data.email).execute()
+    if existing.data:
+        raise HTTPException(status_code=400, detail="User already exists")
 
-        # store profile
-        supabase.table("user").insert({
-            "id": auth.user.id,
+    hashed = bcrypt.hashpw(data.password.encode(), bcrypt.gensalt()).decode()
+
+    user = supabase.table("user").insert({
+        "name": data.name,
+        "email": data.email,
+        "password": hashed
+    }).execute()
+
+    return {
+        "user": {
             "name": data.name,
             "email": data.email
-        }).execute()
-
-        return {
-            "token": auth.session.access_token,
-            "user": {
-                "id": auth.user.id,
-                "name": data.name,
-                "email": data.email
-            }
         }
+    }
 
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-# -----------------------
-# AUTH: LOGIN
-# -----------------------
 @app.post("/api/login")
 def login(data: LoginInput):
-    try:
-        auth = supabase.auth.sign_in_with_password({
-            "email": data.email,
-            "password": data.password
-        })
 
-        if not auth.user:
-            raise HTTPException(status_code=401, detail="Invalid login")
+    res = supabase.table("user").select("*").eq("email", data.email).execute()
+    if not res.data:
+        raise HTTPException(status_code=401, detail="Invalid email")
 
-        profile = supabase.table("user").select("*").eq("id", auth.user.id).execute()
+    user = res.data[0]
 
-        return {
-            "token": auth.session.access_token,
-            "user": profile.data[0]
+    if not bcrypt.checkpw(data.password.encode(), user["password"].encode()):
+        raise HTTPException(status_code=401, detail="Invalid password")
+
+    return {
+        "user": {
+            "name": user["name"],
+            "email": user["email"]
         }
+    }
 
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+# ------------------- Fake News -------------------
 
-# -----------------------
-# Scraping
-# -----------------------
-def scrape_article(url: str) -> str:
+def scrape_article(url):
     try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        res = requests.get(url, headers=headers, timeout=8)
+        res = requests.get(url, timeout=8)
         soup = BeautifulSoup(res.text, "html.parser")
         return " ".join(p.text for p in soup.find_all("p"))
     except:
         return ""
 
-# -----------------------
-# NYTimes
-# -----------------------
-def fetch_from_nytimes(url: str) -> str:
+def fetch_from_nytimes(url):
+    if not NYT_API_KEY:
+        return ""
     try:
         keywords = url.split("/")[-1].replace("-", " ")
-        api_url = "https://api.nytimes.com/svc/search/v2/articlesearch.json"
-        res = requests.get(api_url, params={"q": keywords, "api-key": NYT_API_KEY})
-        docs = res.json().get("response", {}).get("docs", [])
+        res = requests.get("https://api.nytimes.com/svc/search/v2/articlesearch.json",
+            params={"q": keywords, "api-key": NYT_API_KEY})
+        docs = res.json()["response"]["docs"]
         if not docs:
             return ""
-        a = docs[0]
-        return f"{a['headline']['main']} {a['abstract']} {a['lead_paragraph']}"
+        return docs[0]["abstract"]
     except:
         return ""
 
-# -----------------------
-# FAKE NEWS
-# -----------------------
 @app.post("/api/fake-news/check")
-def check_fake_news(data: NewsInput):
-    content = ""
+def check(data: NewsInput):
 
     if data.url:
         content = fetch_from_nytimes(data.url) if "nytimes.com" in data.url else scrape_article(data.url)
     else:
-        content = data.text or ""
+        content = data.text
 
-    if not content.strip():
-        return {"verdict": "UNKNOWN", "confidence": 0}
+    if not content:
+        return {"verdict":"UNKNOWN","confidence":0}
 
     vec = vectorizer.transform([content])
-    prediction = model.predict(vec)[0]
+    pred = model.predict(vec)[0]
     prob = model.predict_proba(vec)[0].max()
 
     return {
-        "verdict": "REAL" if prediction == 1 else "FAKE",
+        "verdict": "REAL" if pred == 1 else "FAKE",
         "confidence": round(prob * 100, 2)
     }
