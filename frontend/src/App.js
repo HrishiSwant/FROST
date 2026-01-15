@@ -1,19 +1,11 @@
 import { useState } from "react";
 import Fakenews from "./pages/Fakenews";
-import {
-  LogOut,
-  ShieldCheck,
-  Phone,
-  ScanFace
-} from "lucide-react";
+import { LogOut, ShieldCheck, Phone, ScanFace } from "lucide-react";
 
-// 🔑 Backend base URL (Render)
 const API_BASE = "https://frost-7sn1.onrender.com";
 
 function App() {
-  // 🔥 CHANGE IS HERE (login → fake-news)
   const [currentView, setCurrentView] = useState("login");
-
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState("");
   const [password, setPassword] = useState("");
@@ -23,47 +15,82 @@ function App() {
   const [loggedInUser, setLoggedInUser] = useState(null);
 
   /* =========================
-     VALIDATION HELPERS
+     VALIDATION
   ========================= */
-
-  const handlePasswordPaste = (e) => {
-    e.preventDefault();
-    alert("Pasting password is not allowed.");
-  };
 
   const validateEmail = (value) => {
     if (!value.trim()) return "Email cannot be blank";
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(value)) return "Enter a valid email address";
-    return "";
-  };
-
-  const validateName = (value) => {
-    if (!value.trim()) return "Name cannot be blank";
-    if (value.trim().length < 4) return "Name must be at least 4 characters";
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!regex.test(value)) return "Enter valid email";
     return "";
   };
 
   const validatePassword = (value) => {
     if (!value) return "Password cannot be blank";
-    const passwordRegex =
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
-    if (!passwordRegex.test(value)) {
-      return "Password must contain uppercase, lowercase, number & special character";
-    }
+    if (value.length < 6) return "Password too short";
     return "";
   };
 
   /* =========================
-     AUTH HANDLERS (DISABLED FOR DEMO)
+     AUTH API
   ========================= */
 
-  const handleLogin = async () => {};
-  const handleSignup = async () => {};
-  const handleLogout = () => {};
+  const handleLogin = async () => {
+    setError("");
+    const e = validateEmail(email);
+    const p = validatePassword(password);
+    if (e) return setEmailError(e);
+    if (p) return setError(p);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.detail);
+
+      setLoggedInUser(data.user);
+      setCurrentView("dashboard");
+    } catch {
+      setError("Invalid login");
+    }
+  };
+
+  const handleSignup = async () => {
+    setError("");
+    const e = validateEmail(email);
+    const p = validatePassword(password);
+    if (!name) return setError("Enter name");
+    if (e) return setEmailError(e);
+    if (p) return setError(p);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password })
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.detail);
+
+      setLoggedInUser(data.user);
+      setCurrentView("dashboard");
+    } catch {
+      setError("Signup failed");
+    }
+  };
+
+  const handleLogout = () => {
+    setLoggedInUser(null);
+    setCurrentView("login");
+  };
 
   /* =========================
-     FAKE NEWS VIEW (DEFAULT)
+     FAKE NEWS PAGE
   ========================= */
 
   if (currentView === "fake-news") {
@@ -71,46 +98,41 @@ function App() {
   }
 
   /* =========================
-     DASHBOARD (KEPT FOR LATER)
+     DASHBOARD
   ========================= */
 
   if (currentView === "dashboard") {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-50">
-        <nav className="border-b border-slate-800 bg-slate-950/80 sticky top-0">
-          <div className="max-w-7xl mx-auto px-6 h-16 flex justify-between items-center">
-            <div>
-              <h1 className="text-lg font-bold text-indigo-400">FROST</h1>
-              <p className="text-xs text-slate-400">
-                Fake Resistance & Online Security Technology
-              </p>
-            </div>
-          </div>
+        <nav className="border-b border-slate-800 px-6 py-4 flex justify-between">
+          <div className="text-indigo-400 font-bold">FROST</div>
+          <button onClick={handleLogout} className="bg-red-500 px-4 py-2 rounded">
+            <LogOut className="inline w-4 h-4" /> Logout
+          </button>
         </nav>
 
-        <main className="max-w-7xl mx-auto px-6 py-10">
-          <h2 className="text-3xl font-bold mb-2">Security Dashboard</h2>
+        <main className="max-w-6xl mx-auto p-6">
+          <h2 className="text-2xl mb-6">Security Dashboard</h2>
 
           <div className="grid md:grid-cols-3 gap-6">
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl">
-              <ShieldCheck className="w-8 h-8 text-indigo-400 mb-3" />
-              <h3 className="text-lg font-semibold">Fake News Detection</h3>
+            <div className="bg-slate-900 p-6 rounded">
+              <ShieldCheck className="text-indigo-400" />
               <button
                 onClick={() => setCurrentView("fake-news")}
-                className="mt-4 w-full bg-indigo-500 py-2 rounded-lg"
+                className="w-full mt-4 bg-indigo-500 py-2 rounded"
               >
-                Start Analysis
+                Fake News
               </button>
             </div>
 
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl opacity-60">
-              <Phone className="w-8 h-8 text-emerald-400 mb-3" />
-              <h3 className="text-lg font-semibold">Caller ID Protection</h3>
+            <div className="bg-slate-900 p-6 rounded opacity-50">
+              <Phone />
+              <p>Caller ID (soon)</p>
             </div>
 
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl opacity-60">
-              <ScanFace className="w-8 h-8 text-purple-400 mb-3" />
-              <h3 className="text-lg font-semibold">Deepfake Detection</h3>
+            <div className="bg-slate-900 p-6 rounded opacity-50">
+              <ScanFace />
+              <p>Deepfake (soon)</p>
             </div>
           </div>
         </main>
@@ -118,7 +140,64 @@ function App() {
     );
   }
 
-  return null;
+  /* =========================
+     LOGIN / SIGNUP
+  ========================= */
+
+  return (
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="bg-slate-900 p-8 rounded w-full max-w-md">
+        <h2 className="text-white text-xl mb-4">
+          {currentView === "login" ? "Login" : "Sign Up"}
+        </h2>
+
+        {error && <p className="text-red-400 text-sm">{error}</p>}
+
+        {currentView === "signup" && (
+          <input
+            placeholder="Name"
+            className="w-full p-2 mb-2 bg-slate-800"
+            onChange={(e) => setName(e.target.value)}
+          />
+        )}
+
+        <input
+          placeholder="Email"
+          className="w-full p-2 mb-2 bg-slate-800"
+          onChange={(e) => {
+            setEmail(e.target.value);
+            setEmailError(validateEmail(e.target.value));
+          }}
+        />
+        {emailError && <p className="text-red-400 text-xs">{emailError}</p>}
+
+        <input
+          type="password"
+          placeholder="Password"
+          className="w-full p-2 mb-4 bg-slate-800"
+          onChange={(e) => setPassword(e.target.value)}
+        />
+
+        <button
+          onClick={currentView === "login" ? handleLogin : handleSignup}
+          className="w-full bg-indigo-500 py-2 rounded"
+        >
+          {currentView === "login" ? "Login" : "Sign Up"}
+        </button>
+
+        <p
+          className="text-indigo-300 mt-4 cursor-pointer text-sm"
+          onClick={() =>
+            setCurrentView(currentView === "login" ? "signup" : "login")
+          }
+        >
+          {currentView === "login"
+            ? "Create account"
+            : "Already have account?"}
+        </p>
+      </div>
+    </div>
+  );
 }
 
 export default App;
