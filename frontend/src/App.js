@@ -12,7 +12,7 @@ const API_BASE = "https://frost-7sn1.onrender.com";
 
 function App() {
   // 🔥 CHANGE IS HERE (login → fake-news)
-  const [currentView, setCurrentView] = useState("fake-news");
+  const [currentView, setCurrentView] = useState("login");
 
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState("");
