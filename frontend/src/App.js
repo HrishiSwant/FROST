@@ -9,10 +9,13 @@ function App() {
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [loggedInUser, setLoggedInUser] = useState(null);
+
+  // 📞 Phone Intelligence
+  const [phone, setPhone] = useState("");
+  const [phoneResult, setPhoneResult] = useState(null);
 
   /* =========================
      VALIDATION
@@ -49,26 +52,18 @@ function App() {
       const response = await fetch(`${API_BASE}/api/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email.trim(),
-          password: password,
-        }),
+        body: JSON.stringify({ email: email.trim(), password }),
       });
 
       const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.detail || "Login failed");
-        return;
-      }
+      if (!response.ok) return setError(data.detail || "Login failed");
 
       localStorage.setItem("token", data.token);
       setLoggedInUser(data.user);
       setCurrentView("dashboard");
-
       setEmail("");
       setPassword("");
-    } catch (err) {
+    } catch {
       setError("Server unreachable");
     }
   };
@@ -87,31 +82,85 @@ function App() {
       const response = await fetch(`${API_BASE}/api/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          email: email.trim(),
-          password: password,
-        }),
+        body: JSON.stringify({ name, email, password }),
       });
 
       const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.detail || "Signup failed");
-        return;
-      }
+      if (!response.ok) return setError(data.detail || "Signup failed");
 
       localStorage.setItem("token", data.token);
       setLoggedInUser(data.user);
       setCurrentView("dashboard");
-
       setName("");
       setEmail("");
       setPassword("");
-    } catch (err) {
+    } catch {
       setError("Server unreachable");
     }
   };
+
+  /* =========================
+     PHONE CHECK
+  ========================= */
+
+  const checkPhone = async () => {
+    const res = await fetch(`${API_BASE}/api/phone/check`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone }),
+    });
+
+    const data = await res.json();
+    setPhoneResult(data);
+  };
+
+  /* =========================
+     PHONE PAGE
+  ========================= */
+
+  if (currentView === "phone") {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="frost-card p-8 w-full max-w-xl">
+          <h2 className="text-cyan-400 text-xl mb-4">Phone Intelligence</h2>
+
+          <input
+            placeholder="Enter phone number"
+            className="w-full p-2 bg-slate-800 rounded mb-4"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
+
+          <button
+            onClick={checkPhone}
+            className="w-full bg-cyan-500 py-2 rounded text-black font-bold"
+          >
+            Scan Number
+          </button>
+
+          {phoneResult && (
+            <div className="mt-4 text-sm space-y-1">
+              <p>Country: {phoneResult.country}</p>
+              <p>Carrier: {phoneResult.carrier}</p>
+              <p>Type: {phoneResult.type}</p>
+              <p>Location: {phoneResult.location}</p>
+              <p className="text-cyan-300">
+                Fraud Risk: {phoneResult.fraudScore}%
+              </p>
+              <p className="font-bold">Verdict: {phoneResult.verdict}</p>
+            </div>
+          )}
+
+          <button
+            className="mt-4 text-cyan-300"
+            onClick={() => setCurrentView("dashboard")}
+          >
+            ← Back
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   /* =========================
      FAKE NEWS PAGE
@@ -136,9 +185,7 @@ function App() {
         </nav>
 
         <main className="max-w-6xl mx-auto p-6">
-          <h2 className="text-2xl mb-6 text-cyan-300">
-            Security Dashboard
-          </h2>
+          <h2 className="text-2xl mb-6 text-cyan-300">Security Dashboard</h2>
 
           <div className="grid md:grid-cols-3 gap-6">
             <div className="frost-card p-6">
@@ -151,9 +198,12 @@ function App() {
               </button>
             </div>
 
-            <div className="frost-card p-6 opacity-50">
-              <Phone />
-              <p>Caller ID (soon)</p>
+            <div
+              className="frost-card p-6 cursor-pointer hover:scale-105 transition"
+              onClick={() => setCurrentView("phone")}
+            >
+              <Phone className="text-cyan-400" />
+              <p className="mt-2 text-cyan-300">Caller ID</p>
             </div>
 
             <div className="frost-card p-6 opacity-50">
@@ -167,7 +217,7 @@ function App() {
   }
 
   /* =========================
-     LOGIN / SIGNUP
+     LOGIN
   ========================= */
 
   return (
@@ -195,9 +245,6 @@ function App() {
             setEmailError(validateEmail(e.target.value));
           }}
         />
-        {emailError && (
-          <p className="text-red-400 text-xs">{emailError}</p>
-        )}
 
         <input
           type="password"
@@ -212,17 +259,6 @@ function App() {
         >
           {currentView === "login" ? "Login" : "Sign Up"}
         </button>
-
-        <p
-          className="text-cyan-300 mt-4 cursor-pointer text-sm"
-          onClick={() =>
-            setCurrentView(currentView === "login" ? "signup" : "login")
-          }
-        >
-          {currentView === "login"
-            ? "Create account"
-            : "Already have account?"}
-        </p>
       </div>
     </div>
   );
