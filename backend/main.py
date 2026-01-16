@@ -14,6 +14,8 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 NYT_API_KEY = os.getenv("NYT_API_KEY")
+NUMVERIFY_KEY = os.getenv("NUMVERIFY_KEY")
+ABSTRACT_KEY = os.getenv("ABSTRACT_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise RuntimeError("Supabase environment variables not set")
@@ -51,11 +53,13 @@ class NewsInput(BaseModel):
     text: str | None = None
     url: str | None = None
 
+class PhoneInput(BaseModel):
+    phone: str
+
 # ------------------- AUTH -------------------
 
 @app.post("/api/signup")
 def signup(data: SignupInput):
-
     existing = supabase.table("user").select("id").eq("email", data.email).execute()
     if existing.data:
         raise HTTPException(status_code=400, detail="User already exists")
@@ -79,7 +83,6 @@ def signup(data: SignupInput):
 
 @app.post("/api/login")
 def login(data: LoginInput):
-
     res = supabase.table("user").select("*").eq("email", data.email).execute()
     if not res.data:
         raise HTTPException(status_code=401, detail="Invalid email")
@@ -124,7 +127,6 @@ def fetch_from_nytimes(url):
 
 @app.post("/api/fake-news/check")
 def check(data: NewsInput):
-
     if data.url:
         content = fetch_from_nytimes(data.url) if "nytimes.com" in data.url else scrape_article(data.url)
     else:
@@ -141,3 +143,50 @@ def check(data: NewsInput):
         "verdict": "REAL" if pred == 1 else "FAKE",
         "confidence": round(prob * 100, 2)
     }
+
+# ------------------- Phone Intelligence -------------------
+
+@app.post("/api/phone/check")
+def phone_check(data: PhoneInput):
+    try:
+        numverify = requests.get(
+            "https://apilayer.net/api/validate",
+            params={
+                "access_key": NUMVERIFY_KEY,
+                "number": data.phone
+            },
+            timeout=8
+        ).json()
+
+        abstract = requests.get(
+            "https://phonevalidation.abstractapi.com/v1/",
+            params={
+                "api_key": ABSTRACT_KEY,
+                "phone": data.phone
+            },
+            timeout=8
+        ).json()
+
+        score = 0
+        if not numverify.get("valid"):
+            score += 40
+        if numverify.get("line_type") == "voip":
+            score += 30
+        if abstract.get("is_disposable"):
+            score += 30
+
+        risk = min(score, 100)
+
+        return {
+            "phone": data.phone,
+            "country": numverify.get("country_name"),
+            "carrier": numverify.get("carrier"),
+            "type": numverify.get("line_type"),
+            "location": abstract.get("location"),
+            "valid": numverify.get("valid"),
+            "fraudScore": risk,
+            "verdict": "High Risk" if risk > 60 else "Safe"
+        }
+
+    except:
+        raise HTTPException(status_code=500, detail="Phone lookup failed")
