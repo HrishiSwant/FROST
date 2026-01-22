@@ -12,7 +12,6 @@ function App() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [error, setError] = useState("");
-  const [loggedInUser, setLoggedInUser] = useState(null);
 
   // 📞 Phone Intelligence
   const [phone, setPhone] = useState("");
