@@ -1,21 +1,36 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Fakenews from "./pages/Fakenews";
 import Deepfake from "./pages/Deepfake";
-import { LogOut, ShieldCheck, Phone, ScanFace } from "lucide-react";
+import { ShieldCheck, Phone, ScanFace } from "lucide-react";
 
 const API_BASE = "https://frost-7sn1.onrender.com";
 
 function App() {
   const [currentView, setCurrentView] = useState("login");
-const [email, setEmail] = useState("");
-const [emailError, setEmailError] = useState("");
-const [password, setPassword] = useState("");
-const [name, setName] = useState("");
-const [error, setError] = useState("");
 
-const [phone, setPhone] = useState("");
-const [phoneResult, setPhoneResult] = useState(null);
-const [phoneLoading, setPhoneLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [error, setError] = useState("");
+
+  const [phone, setPhone] = useState("");
+  const [phoneResult, setPhoneResult] = useState(null);
+  const [phoneLoading, setPhoneLoading] = useState(false);
+
+  /* =========================
+     THEME + MENU
+  ========================= */
+
+  const [theme, setTheme] = useState(
+    localStorage.getItem("theme") || "cyber"
+  );
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
 
   /* =========================
      VALIDATION
@@ -49,16 +64,15 @@ const [phoneLoading, setPhoneLoading] = useState(false);
     if (passwordMsg) return setError(passwordMsg);
 
     try {
-      const response = await fetch(`${API_BASE}/api/login`, {
+      const res = await fetch(`${API_BASE}/api/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim(), password }),
       });
 
-      const data = await response.json();
-      if (!response.ok) return setError(data.detail || "Login failed");
+      const data = await res.json();
+      if (!res.ok) return setError(data.detail || "Login failed");
 
-      
       setCurrentView("dashboard");
       setEmail("");
       setPassword("");
@@ -78,16 +92,15 @@ const [phoneLoading, setPhoneLoading] = useState(false);
     if (passwordMsg) return setError(passwordMsg);
 
     try {
-      const response = await fetch(`${API_BASE}/api/signup`, {
+      const res = await fetch(`${API_BASE}/api/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password }),
       });
 
-      const data = await response.json();
-      if (!response.ok) return setError(data.detail || "Signup failed");
+      const data = await res.json();
+      if (!res.ok) return setError(data.detail || "Signup failed");
 
-      
       setCurrentView("dashboard");
       setName("");
       setEmail("");
@@ -98,10 +111,10 @@ const [phoneLoading, setPhoneLoading] = useState(false);
   };
 
   const handleLogout = () => {
-    
     setCurrentView("login");
-    setPhoneResult(null);
     setPhone("");
+    setPhoneResult(null);
+    setMenuOpen(false);
   };
 
   /* =========================
@@ -184,20 +197,11 @@ const [phoneLoading, setPhoneLoading] = useState(false);
   }
 
   /* =========================
-     FAKE NEWS
+     FAKE NEWS / DEEPFAKE
   ========================= */
 
-  if (currentView === "fake-news") {
-    return <Fakenews />;
-  }
-
-  /* =========================
-     DEEPFAKE
-  ========================= */
-
-  if (currentView === "deepfake") {
-    return <Deepfake />;
-  }
+  if (currentView === "fake-news") return <Fakenews />;
+  if (currentView === "deepfake") return <Deepfake />;
 
   /* =========================
      DASHBOARD
@@ -206,14 +210,51 @@ const [phoneLoading, setPhoneLoading] = useState(false);
   if (currentView === "dashboard") {
     return (
       <div className="min-h-screen text-slate-50">
-        <nav className="border-b border-cyan-400/30 px-6 py-4 flex justify-between">
+        <nav className="border-b border-cyan-400/20 px-6 py-4 flex justify-between items-center">
           <div className="text-cyan-400 font-bold text-xl">FROST</div>
-          <button
-            onClick={handleLogout}
-            className="bg-red-500 px-4 py-2 rounded"
-          >
-            <LogOut className="inline w-4 h-4" /> Logout
-          </button>
+
+          <div className="relative">
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="text-2xl text-cyan-300"
+            >
+              ⋮
+            </button>
+
+            {menuOpen && (
+              <div className="absolute right-0 mt-2 w-48 frost-card p-3 z-50">
+                <p className="text-sm mb-2 text-cyan-300">{email || "User"}</p>
+
+                <button
+                  onClick={() => setTheme("cyber")}
+                  className="block w-full text-left py-1 hover:text-cyan-400"
+                >
+                  Cyber Theme
+                </button>
+                <button
+                  onClick={() => setTheme("dark")}
+                  className="block w-full text-left py-1 hover:text-cyan-400"
+                >
+                  Dark Theme
+                </button>
+                <button
+                  onClick={() => setTheme("light")}
+                  className="block w-full text-left py-1 hover:text-cyan-400"
+                >
+                  Light Theme
+                </button>
+
+                <hr className="my-2 opacity-20" />
+
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-left text-red-400 hover:text-red-500"
+                >
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
         </nav>
 
         <main className="max-w-6xl mx-auto p-6">
