@@ -7,5 +7,7 @@ beautifulsoup4
 scikit-learn
 numpy
 bcrypt
-
+torch
+torchvision
+pillow
 
