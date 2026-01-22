@@ -59,7 +59,7 @@ function App() {
       const data = await response.json();
       if (!response.ok) return setError(data.detail || "Login failed");
 
-      setLoggedInUser(data.user);
+      
       setCurrentView("dashboard");
       setEmail("");
       setPassword("");
@@ -88,7 +88,7 @@ function App() {
       const data = await response.json();
       if (!response.ok) return setError(data.detail || "Signup failed");
 
-      setLoggedInUser(data.user);
+      
       setCurrentView("dashboard");
       setName("");
       setEmail("");
@@ -99,7 +99,7 @@ function App() {
   };
 
   const handleLogout = () => {
-    setLoggedInUser(null);
+    
     setCurrentView("login");
     setPhoneResult(null);
     setPhone("");
