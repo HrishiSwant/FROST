@@ -1,14 +1,13 @@
 import os
 import pickle
-import bcrypt
 import requests
-from supabase import create_client
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
+from supabase import create_client
 
 # ✅ Deepfake detector
 from deepfake_detector import analyze_image
@@ -18,7 +17,7 @@ from deepfake_detector import analyze_image
 load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")  # backend only
 NYT_API_KEY = os.getenv("NYT_API_KEY")
 NUMVERIFY_KEY = os.getenv("NUMVERIFY_KEY")
 ABSTRACT_KEY = os.getenv("ABSTRACT_KEY")
@@ -68,49 +67,51 @@ class NewsInput(BaseModel):
 class PhoneInput(BaseModel):
     phone: str
 
-# ------------------- AUTH -------------------
+# ------------------- AUTH (SUPABASE ONLY) -------------------
 
 @app.post("/api/signup")
 def signup(data: SignupInput):
-    existing = supabase.table("user").select("id").eq("email", data.email).execute()
-    if existing.data:
-        raise HTTPException(status_code=400, detail="User already exists")
-
-    hashed = bcrypt.hashpw(data.password.encode(), bcrypt.gensalt()).decode()
-
-    result = supabase.table("user").insert({
-        "name": data.name,
+    response = supabase.auth.sign_up({
         "email": data.email,
-        "password": hashed
-    }).execute()
+        "password": data.password,
+        "options": {
+            "data": {
+                "name": data.name
+            }
+        }
+    })
 
-    user = result.data[0]
+    if response.user is None:
+        raise HTTPException(status_code=400, detail="Signup failed")
 
     return {
-        "message": "Signup successful",
-        "user": {
-            "name": user["name"],
-            "email": user["email"]
-        }
+        "message": "Verification email sent. Please verify your email."
     }
+
 
 @app.post("/api/login")
 def login(data: LoginInput):
-    res = supabase.table("user").select("*").eq("email", data.email).execute()
-    if not res.data:
+    response = supabase.auth.sign_in_with_password({
+        "email": data.email,
+        "password": data.password
+    })
+
+    if response.user is None:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    user = res.data[0]
-
-    if not bcrypt.checkpw(data.password.encode(), user["password"].encode()):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+    if not response.user.email_confirmed_at:
+        raise HTTPException(
+            status_code=403,
+            detail="Please verify your email before logging in"
+        )
 
     return {
         "message": "Login successful",
         "user": {
-            "name": user["name"],
-            "email": user["email"]
-        }
+            "id": response.user.id,
+            "email": response.user.email
+        },
+        "access_token": response.session.access_token
     }
 
 # ------------------- NEWS UTILITIES -------------------
@@ -167,9 +168,6 @@ def check_news(data: NewsInput):
 
 @app.post("/api/phone/check")
 def phone_check(data: PhoneInput):
-    if not NUMVERIFY_KEY or not ABSTRACT_KEY:
-        raise HTTPException(status_code=500, detail="Phone API keys missing")
-
     try:
         numverify = requests.get(
             "https://apilayer.net/api/validate",
@@ -204,20 +202,17 @@ def phone_check(data: PhoneInput):
     except:
         raise HTTPException(status_code=500, detail="Phone lookup failed")
 
-# ------------------- DEEPFAKE (FINAL & WORKING) -------------------
+# ------------------- DEEPFAKE -------------------
 
 @app.post("/api/deepfake/check")
 async def deepfake_check(file: UploadFile = File(...)):
-    if not file.content_type or not file.content_type.startswith("image/"):
+    if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Image file required")
 
     image_bytes = await file.read()
-
     result = analyze_image(image_bytes)
 
-    # 🔐 Store scan history (important feature)
     supabase.table("scan_history").insert({
-        "user_email": "demo@user.com",
         "type": "deepfake",
         "input": file.filename,
         "verdict": result["verdict"],
@@ -226,7 +221,5 @@ async def deepfake_check(file: UploadFile = File(...)):
 
     return {
         "filename": file.filename,
-        "verdict": result["verdict"],
-        "confidence": result["confidence"],
-        "method": result["method"]
+        **result
     }
