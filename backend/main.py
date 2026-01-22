@@ -5,9 +5,12 @@ import requests
 from supabase import create_client
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+from typing import Optional
+
+# ------------------- ENV -------------------
 
 load_dotenv()
 
@@ -22,23 +25,29 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-app = FastAPI()
+# ------------------- APP -------------------
+
+app = FastAPI(title="FROST Cyber Security API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # tighten in production
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Load ML
-with open("model.pkl", "rb") as f:
-    model = pickle.load(f)
+# ------------------- LOAD ML MODELS (ONCE) -------------------
 
-with open("vectorizer.pkl", "rb") as f:
-    vectorizer = pickle.load(f)
+try:
+    with open("model.pkl", "rb") as f:
+        model = pickle.load(f)
 
-# ------------------- Schemas -------------------
+    with open("vectorizer.pkl", "rb") as f:
+        vectorizer = pickle.load(f)
+except Exception:
+    raise RuntimeError("ML model or vectorizer missing")
+
+# ------------------- SCHEMAS -------------------
 
 class SignupInput(BaseModel):
     name: str
@@ -50,8 +59,8 @@ class LoginInput(BaseModel):
     password: str
 
 class NewsInput(BaseModel):
-    text: str | None = None
-    url: str | None = None
+    text: Optional[str] = None
+    url: Optional[str] = None
 
 class PhoneInput(BaseModel):
     phone: str
@@ -75,6 +84,7 @@ def signup(data: SignupInput):
     user = result.data[0]
 
     return {
+        "message": "Signup successful",
         "user": {
             "name": user["name"],
             "email": user["email"]
@@ -85,69 +95,84 @@ def signup(data: SignupInput):
 def login(data: LoginInput):
     res = supabase.table("user").select("*").eq("email", data.email).execute()
     if not res.data:
-        raise HTTPException(status_code=401, detail="Invalid email")
+        raise HTTPException(status_code=401, detail="Invalid credentials")
 
     user = res.data[0]
 
     if not bcrypt.checkpw(data.password.encode(), user["password"].encode()):
-        raise HTTPException(status_code=401, detail="Invalid password")
+        raise HTTPException(status_code=401, detail="Invalid credentials")
 
     return {
+        "message": "Login successful",
         "user": {
             "name": user["name"],
             "email": user["email"]
         }
     }
 
-# ------------------- Fake News -------------------
+# ------------------- NEWS UTILITIES -------------------
 
-def scrape_article(url):
+def scrape_article(url: str) -> str:
     try:
-        res = requests.get(url, timeout=8)
+        res = requests.get(url, timeout=6)
         soup = BeautifulSoup(res.text, "html.parser")
-        return " ".join(p.text for p in soup.find_all("p"))
+        text = " ".join(p.text for p in soup.find_all("p"))
+        return text[:10000]  # limit size for speed
     except:
         return ""
 
-def fetch_from_nytimes(url):
+def fetch_from_nytimes(url: str) -> str:
     if not NYT_API_KEY:
         return ""
     try:
         keywords = url.split("/")[-1].replace("-", " ")
         res = requests.get(
             "https://api.nytimes.com/svc/search/v2/articlesearch.json",
-            params={"q": keywords, "api-key": NYT_API_KEY}
+            params={"q": keywords, "api-key": NYT_API_KEY},
+            timeout=6
         )
-        docs = res.json()["response"]["docs"]
-        if not docs:
-            return ""
-        return docs[0]["abstract"]
+        docs = res.json().get("response", {}).get("docs", [])
+        return docs[0]["abstract"] if docs else ""
     except:
         return ""
 
+# ------------------- FAKE NEWS CHECK -------------------
+
 @app.post("/api/fake-news/check")
-def check(data: NewsInput):
+def check_news(data: NewsInput):
+    if not data.text and not data.url:
+        raise HTTPException(status_code=400, detail="Text or URL required")
+
+    content = ""
+
     if data.url:
-        content = fetch_from_nytimes(data.url) if "nytimes.com" in data.url else scrape_article(data.url)
+        if "nytimes.com" in data.url:
+            content = fetch_from_nytimes(data.url)
+        else:
+            content = scrape_article(data.url)
     else:
         content = data.text
 
-    if not content:
+    if not content or len(content.strip()) < 50:
         return {"verdict": "UNKNOWN", "confidence": 0}
 
     vec = vectorizer.transform([content])
-    pred = model.predict(vec)[0]
-    prob = model.predict_proba(vec)[0].max()
+    prediction = model.predict(vec)[0]
+    probability = model.predict_proba(vec)[0].max()
 
     return {
-        "verdict": "REAL" if pred == 1 else "FAKE",
-        "confidence": round(prob * 100, 2)
+        "verdict": "REAL" if prediction == 1 else "FAKE",
+        "confidence": round(probability * 100, 2),
+        "source": "ML NLP Model"
     }
 
-# ------------------- Phone Intelligence -------------------
+# ------------------- PHONE INTELLIGENCE -------------------
 
 @app.post("/api/phone/check")
 def phone_check(data: PhoneInput):
+    if not NUMVERIFY_KEY or not ABSTRACT_KEY:
+        raise HTTPException(status_code=500, detail="Phone API keys missing")
+
     try:
         numverify = requests.get(
             "https://apilayer.net/api/validate",
@@ -155,7 +180,7 @@ def phone_check(data: PhoneInput):
                 "access_key": NUMVERIFY_KEY,
                 "number": data.phone
             },
-            timeout=8
+            timeout=6
         ).json()
 
         abstract = requests.get(
@@ -164,7 +189,7 @@ def phone_check(data: PhoneInput):
                 "api_key": ABSTRACT_KEY,
                 "phone": data.phone
             },
-            timeout=8
+            timeout=6
         ).json()
 
         score = 0
@@ -181,12 +206,26 @@ def phone_check(data: PhoneInput):
             "phone": data.phone,
             "country": numverify.get("country_name"),
             "carrier": numverify.get("carrier"),
-            "type": numverify.get("line_type"),
+            "lineType": numverify.get("line_type"),
             "location": abstract.get("location"),
             "valid": numverify.get("valid"),
             "fraudScore": risk,
-            "verdict": "High Risk" if risk > 60 else "Safe"
+            "verdict": "HIGH RISK" if risk >= 60 else "SAFE"
         }
 
-    except:
+    except Exception:
         raise HTTPException(status_code=500, detail="Phone lookup failed")
+
+# ------------------- DEEPFAKE (PLACEHOLDER – ADD MODEL LATER) -------------------
+
+@app.post("/api/deepfake/check")
+async def deepfake_check(file: UploadFile = File(...)):
+    """
+    Placeholder endpoint.
+    Replace logic with CNN / EfficientNet model.
+    """
+    return {
+        "filename": file.filename,
+        "verdict": "NOT IMPLEMENTED",
+        "confidence": 0
+    }
