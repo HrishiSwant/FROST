@@ -145,11 +145,14 @@ def check_news(data: NewsInput):
     if not data.text and not data.url:
         raise HTTPException(status_code=400, detail="Text or URL required")
 
-    content = (
-        fetch_from_nytimes(data.url)
-        if data.url and "nytimes.com" in data.url
-        else scrape_article(data.url) if data.url else data.text
-    )
+    if data.url:
+        content = (
+            fetch_from_nytimes(data.url)
+            if "nytimes.com" in data.url
+            else scrape_article(data.url)
+        )
+    else:
+        content = data.text
 
     if not content or len(content.strip()) < 50:
         return {"verdict": "UNKNOWN", "confidence": 0}
@@ -167,6 +170,9 @@ def check_news(data: NewsInput):
 
 @app.post("/api/phone/check")
 def phone_check(data: PhoneInput):
+    if not NUMVERIFY_KEY or not ABSTRACT_KEY:
+        raise HTTPException(status_code=500, detail="Phone API keys missing")
+
     try:
         numverify = requests.get(
             "https://apilayer.net/api/validate",
@@ -188,27 +194,30 @@ def phone_check(data: PhoneInput):
         if abstract.get("is_disposable"):
             score += 30
 
+        risk = min(score, 100)
+
         return {
             "phone": data.phone,
             "country": numverify.get("country_name"),
             "carrier": numverify.get("carrier"),
             "lineType": numverify.get("line_type"),
             "location": abstract.get("location"),
-            "fraudScore": min(score, 100),
-            "verdict": "HIGH RISK" if score >= 60 else "SAFE"
+            "fraudScore": risk,
+            "verdict": "HIGH RISK" if risk >= 60 else "SAFE"
         }
 
-    except:
+    except Exception:
         raise HTTPException(status_code=500, detail="Phone lookup failed")
 
 # ------------------- DEEPFAKE (WORKING) -------------------
 
 @app.post("/api/deepfake/check")
 async def deepfake_check(file: UploadFile = File(...)):
-    if not file.content_type.startswith("image/"):
+    if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Image file required")
 
     image_bytes = await file.read()
+
     result = analyze_image(image_bytes)
 
     return {
