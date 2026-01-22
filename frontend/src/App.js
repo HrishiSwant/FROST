@@ -17,6 +17,7 @@ function App() {
   // 📞 Phone Intelligence
   const [phone, setPhone] = useState("");
   const [phoneResult, setPhoneResult] = useState(null);
+  const [phoneLoading, setPhoneLoading] = useState(false);
 
   /* =========================
      VALIDATION
@@ -36,7 +37,7 @@ function App() {
   };
 
   /* =========================
-     AUTH API
+     AUTH
   ========================= */
 
   const handleLogin = async () => {
@@ -59,7 +60,6 @@ function App() {
       const data = await response.json();
       if (!response.ok) return setError(data.detail || "Login failed");
 
-      localStorage.setItem("token", data.token);
       setLoggedInUser(data.user);
       setCurrentView("dashboard");
       setEmail("");
@@ -89,7 +89,6 @@ function App() {
       const data = await response.json();
       if (!response.ok) return setError(data.detail || "Signup failed");
 
-      localStorage.setItem("token", data.token);
       setLoggedInUser(data.user);
       setCurrentView("dashboard");
       setName("");
@@ -100,19 +99,37 @@ function App() {
     }
   };
 
+  const handleLogout = () => {
+    setLoggedInUser(null);
+    setCurrentView("login");
+    setPhoneResult(null);
+    setPhone("");
+  };
+
   /* =========================
      PHONE CHECK
   ========================= */
 
   const checkPhone = async () => {
-    const res = await fetch(`${API_BASE}/api/phone/check`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone }),
-    });
+    setPhoneLoading(true);
+    setPhoneResult(null);
 
-    const data = await res.json();
-    setPhoneResult(data);
+    try {
+      const res = await fetch(`${API_BASE}/api/phone/check`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Phone check failed");
+
+      setPhoneResult(data);
+    } catch (err) {
+      setPhoneResult({ error: err.message });
+    } finally {
+      setPhoneLoading(false);
+    }
   };
 
   /* =========================
@@ -134,16 +151,21 @@ function App() {
 
           <button
             onClick={checkPhone}
+            disabled={phoneLoading}
             className="w-full bg-cyan-500 py-2 rounded text-black font-bold"
           >
-            Scan Number
+            {phoneLoading ? "Scanning..." : "Scan Number"}
           </button>
 
-          {phoneResult && (
+          {phoneResult?.error && (
+            <p className="mt-4 text-red-400">{phoneResult.error}</p>
+          )}
+
+          {phoneResult && !phoneResult.error && (
             <div className="mt-4 text-sm space-y-1">
               <p>Country: {phoneResult.country}</p>
               <p>Carrier: {phoneResult.carrier}</p>
-              <p>Type: {phoneResult.type}</p>
+              <p>Type: {phoneResult.lineType}</p>
               <p>Location: {phoneResult.location}</p>
               <p className="text-cyan-300">
                 Fraud Risk: {phoneResult.fraudScore}%
@@ -164,11 +186,19 @@ function App() {
   }
 
   /* =========================
-     FAKE NEWS PAGE
+     FAKE NEWS
   ========================= */
 
   if (currentView === "fake-news") {
     return <Fakenews />;
+  }
+
+  /* =========================
+     DEEPFAKE
+  ========================= */
+
+  if (currentView === "deepfake") {
+    return <Deepfake />;
   }
 
   /* =========================
@@ -180,13 +210,18 @@ function App() {
       <div className="min-h-screen text-slate-50">
         <nav className="border-b border-cyan-400/30 px-6 py-4 flex justify-between">
           <div className="text-cyan-400 font-bold text-xl">FROST</div>
-          <button className="bg-red-500 px-4 py-2 rounded">
+          <button
+            onClick={handleLogout}
+            className="bg-red-500 px-4 py-2 rounded"
+          >
             <LogOut className="inline w-4 h-4" /> Logout
           </button>
         </nav>
 
         <main className="max-w-6xl mx-auto p-6">
-          <h2 className="text-2xl mb-6 text-cyan-300">Security Dashboard</h2>
+          <h2 className="text-2xl mb-6 text-cyan-300">
+            Security Dashboard
+          </h2>
 
           <div className="grid md:grid-cols-3 gap-6">
             <div className="frost-card p-6">
@@ -207,9 +242,12 @@ function App() {
               <p className="mt-2 text-cyan-300">Caller ID</p>
             </div>
 
-            <div className="frost-card p-6 opacity-50">
-              <ScanFace />
-              <p>Deepfake (soon)</p>
+            <div
+              className="frost-card p-6 cursor-pointer hover:scale-105 transition"
+              onClick={() => setCurrentView("deepfake")}
+            >
+              <ScanFace className="text-cyan-400" />
+              <p className="mt-2 text-cyan-300">Deepfake Detection</p>
             </div>
           </div>
         </main>
@@ -218,7 +256,7 @@ function App() {
   }
 
   /* =========================
-     LOGIN
+     LOGIN / SIGNUP
   ========================= */
 
   return (
@@ -234,6 +272,7 @@ function App() {
           <input
             placeholder="Name"
             className="w-full p-2 mb-2 bg-slate-800 rounded"
+            value={name}
             onChange={(e) => setName(e.target.value)}
           />
         )}
@@ -241,16 +280,21 @@ function App() {
         <input
           placeholder="Email"
           className="w-full p-2 mb-2 bg-slate-800 rounded"
+          value={email}
           onChange={(e) => {
             setEmail(e.target.value);
             setEmailError(validateEmail(e.target.value));
           }}
         />
+        {emailError && (
+          <p className="text-red-400 text-sm">{emailError}</p>
+        )}
 
         <input
           type="password"
           placeholder="Password"
           className="w-full p-2 mb-4 bg-slate-800 rounded"
+          value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
 
@@ -260,6 +304,17 @@ function App() {
         >
           {currentView === "login" ? "Login" : "Sign Up"}
         </button>
+
+        <p
+          className="mt-4 text-cyan-300 text-sm cursor-pointer"
+          onClick={() =>
+            setCurrentView(currentView === "login" ? "signup" : "login")
+          }
+        >
+          {currentView === "login"
+            ? "Create an account"
+            : "Already have an account?"}
+        </p>
       </div>
     </div>
   );
