@@ -10,6 +10,9 @@ from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 
+# ✅ Deepfake detector
+from deepfake_detector import analyze_image
+
 # ------------------- ENV -------------------
 
 load_dotenv()
@@ -31,12 +34,12 @@ app = FastAPI(title="FROST Cyber Security API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten in production
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ------------------- LOAD ML MODELS (ONCE) -------------------
+# ------------------- LOAD ML MODELS -------------------
 
 try:
     with open("model.pkl", "rb") as f:
@@ -116,8 +119,7 @@ def scrape_article(url: str) -> str:
     try:
         res = requests.get(url, timeout=6)
         soup = BeautifulSoup(res.text, "html.parser")
-        text = " ".join(p.text for p in soup.find_all("p"))
-        return text[:10000]
+        return " ".join(p.text for p in soup.find_all("p"))[:10000]
     except:
         return ""
 
@@ -136,19 +138,18 @@ def fetch_from_nytimes(url: str) -> str:
     except:
         return ""
 
-# ------------------- FAKE NEWS CHECK -------------------
+# ------------------- FAKE NEWS -------------------
 
 @app.post("/api/fake-news/check")
 def check_news(data: NewsInput):
     if not data.text and not data.url:
         raise HTTPException(status_code=400, detail="Text or URL required")
 
-    content = ""
-
-    if data.url:
-        content = fetch_from_nytimes(data.url) if "nytimes.com" in data.url else scrape_article(data.url)
-    else:
-        content = data.text
+    content = (
+        fetch_from_nytimes(data.url)
+        if data.url and "nytimes.com" in data.url
+        else scrape_article(data.url) if data.url else data.text
+    )
 
     if not content or len(content.strip()) < 50:
         return {"verdict": "UNKNOWN", "confidence": 0}
@@ -159,17 +160,13 @@ def check_news(data: NewsInput):
 
     return {
         "verdict": "REAL" if prediction == 1 else "FAKE",
-        "confidence": round(probability * 100, 2),
-        "source": "ML NLP Model"
+        "confidence": round(probability * 100, 2)
     }
 
-# ------------------- PHONE INTELLIGENCE -------------------
+# ------------------- PHONE CHECK -------------------
 
 @app.post("/api/phone/check")
 def phone_check(data: PhoneInput):
-    if not NUMVERIFY_KEY or not ABSTRACT_KEY:
-        raise HTTPException(status_code=500, detail="Phone API keys missing")
-
     try:
         numverify = requests.get(
             "https://apilayer.net/api/validate",
@@ -191,36 +188,30 @@ def phone_check(data: PhoneInput):
         if abstract.get("is_disposable"):
             score += 30
 
-        risk = min(score, 100)
-
         return {
             "phone": data.phone,
             "country": numverify.get("country_name"),
             "carrier": numverify.get("carrier"),
             "lineType": numverify.get("line_type"),
             "location": abstract.get("location"),
-            "valid": numverify.get("valid"),
-            "fraudScore": risk,
-            "verdict": "HIGH RISK" if risk >= 60 else "SAFE"
+            "fraudScore": min(score, 100),
+            "verdict": "HIGH RISK" if score >= 60 else "SAFE"
         }
 
-    except Exception:
+    except:
         raise HTTPException(status_code=500, detail="Phone lookup failed")
 
-# ------------------- DEEPFAKE (SAFE PLACEHOLDER) -------------------
+# ------------------- DEEPFAKE (WORKING) -------------------
 
 @app.post("/api/deepfake/check")
-async def deepfake_check(file: UploadFile = File(None)):
-    """
-    Safe placeholder endpoint.
-    Requires python-multipart only when file is actually sent.
-    """
+async def deepfake_check(file: UploadFile = File(...)):
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Image file required")
 
-    if not file:
-        raise HTTPException(status_code=400, detail="No file uploaded")
+    image_bytes = await file.read()
+    result = analyze_image(image_bytes)
 
     return {
         "filename": file.filename,
-        "verdict": "NOT IMPLEMENTED",
-        "confidence": 0
+        **result
     }
