@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Depends, Header
 from typing import Optional
 from supabase import create_client
 
@@ -26,6 +27,17 @@ if not SUPABASE_URL or not SUPABASE_KEY:
     raise RuntimeError("Supabase environment variables not set")
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+def get_current_user(authorization: str = Header(...)):
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid authorization header")
+
+    token = authorization.replace("Bearer ", "")
+    user = supabase.auth.get_user(token).user
+
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    return user
 
 # ------------------- APP -------------------
 
@@ -141,28 +153,30 @@ def fetch_from_nytimes(url: str) -> str:
 
 # ------------------- FAKE NEWS -------------------
 
-@app.post("/api/fake-news/check")
-def check_news(data: NewsInput):
-    if not data.text and not data.url:
-        raise HTTPException(status_code=400, detail="Text or URL required")
+@app.post("/api/deepfake/check")
+async def deepfake_check(
+    file: UploadFile = File(...),
+    user = Depends(get_current_user)
+):
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Image file required")
 
-    content = (
-        fetch_from_nytimes(data.url)
-        if data.url and "nytimes.com" in data.url
-        else scrape_article(data.url) if data.url else data.text
-    )
+    image_bytes = await file.read()
+    result = analyze_image(image_bytes)
 
-    if not content or len(content.strip()) < 50:
-        return {"verdict": "UNKNOWN", "confidence": 0}
-
-    vec = vectorizer.transform([content])
-    prediction = model.predict(vec)[0]
-    probability = model.predict_proba(vec)[0].max()
+    supabase.table("scan_history").insert({
+        "user_id": user.id,     # 🔐 ownership
+        "type": "deepfake",
+        "input": file.filename,
+        "verdict": result["verdict"],
+        "confidence": result["confidence"]
+    }).execute()
 
     return {
-        "verdict": "REAL" if prediction == 1 else "FAKE",
-        "confidence": round(probability * 100, 2)
+        "filename": file.filename,
+        **result
     }
+
 
 # ------------------- PHONE CHECK -------------------
 
@@ -223,3 +237,4 @@ async def deepfake_check(file: UploadFile = File(...)):
         "filename": file.filename,
         **result
     }
+
