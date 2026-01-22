@@ -5,35 +5,30 @@ import io
 
 def analyze_image(image_bytes: bytes):
     """
-    Lightweight deepfake detection using image forensics.
-    Safe for CPU-only environments (Render).
+    Lightweight deepfake detector (for academic use)
+    Works on image artifacts, blur, noise, edges
     """
 
+    # Load image
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     img = np.array(image)
 
+    # Convert to gray
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
-    # Blur detection
+    # Laplacian variance (blur detection)
     blur_score = cv2.Laplacian(gray, cv2.CV_64F).var()
 
     # Noise estimation
-    noise_score = np.std(gray)
+    noise = np.std(gray)
 
-    confidence = 0
+    # Simple heuristic
+    confidence = min(100, int((noise + (1000 / (blur_score + 1))) / 20))
 
-    if blur_score < 100:
-        confidence += 50
-    if noise_score < 10:
-        confidence += 30
-
-    confidence = min(confidence, 100)
-
-    verdict = "DEEPFAKE" if confidence >= 50 else "REAL"
+    verdict = "FAKE" if confidence > 60 else "REAL"
 
     return {
         "verdict": verdict,
         "confidence": confidence,
-        "blurScore": round(blur_score, 2),
-        "noiseScore": round(noise_score, 2)
+        "method": "Image forensic analysis"
     }
