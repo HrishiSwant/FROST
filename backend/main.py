@@ -117,7 +117,7 @@ def scrape_article(url: str) -> str:
         res = requests.get(url, timeout=6)
         soup = BeautifulSoup(res.text, "html.parser")
         text = " ".join(p.text for p in soup.find_all("p"))
-        return text[:10000]  # limit size for speed
+        return text[:10000]
     except:
         return ""
 
@@ -146,10 +146,7 @@ def check_news(data: NewsInput):
     content = ""
 
     if data.url:
-        if "nytimes.com" in data.url:
-            content = fetch_from_nytimes(data.url)
-        else:
-            content = scrape_article(data.url)
+        content = fetch_from_nytimes(data.url) if "nytimes.com" in data.url else scrape_article(data.url)
     else:
         content = data.text
 
@@ -176,19 +173,13 @@ def phone_check(data: PhoneInput):
     try:
         numverify = requests.get(
             "https://apilayer.net/api/validate",
-            params={
-                "access_key": NUMVERIFY_KEY,
-                "number": data.phone
-            },
+            params={"access_key": NUMVERIFY_KEY, "number": data.phone},
             timeout=6
         ).json()
 
         abstract = requests.get(
             "https://phonevalidation.abstractapi.com/v1/",
-            params={
-                "api_key": ABSTRACT_KEY,
-                "phone": data.phone
-            },
+            params={"api_key": ABSTRACT_KEY, "phone": data.phone},
             timeout=6
         ).json()
 
@@ -216,14 +207,18 @@ def phone_check(data: PhoneInput):
     except Exception:
         raise HTTPException(status_code=500, detail="Phone lookup failed")
 
-# ------------------- DEEPFAKE (PLACEHOLDER – ADD MODEL LATER) -------------------
+# ------------------- DEEPFAKE (SAFE PLACEHOLDER) -------------------
 
 @app.post("/api/deepfake/check")
-async def deepfake_check(file: UploadFile = File(...)):
+async def deepfake_check(file: UploadFile = File(None)):
     """
-    Placeholder endpoint.
-    Replace logic with CNN / EfficientNet model.
+    Safe placeholder endpoint.
+    Requires python-multipart only when file is actually sent.
     """
+
+    if not file:
+        raise HTTPException(status_code=400, detail="No file uploaded")
+
     return {
         "filename": file.filename,
         "verdict": "NOT IMPLEMENTED",
