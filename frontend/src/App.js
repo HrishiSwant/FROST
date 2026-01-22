@@ -7,16 +7,15 @@ const API_BASE = "https://frost-7sn1.onrender.com";
 
 function App() {
   const [currentView, setCurrentView] = useState("login");
-  const [email, setEmail] = useState("");
-  const [emailError, setEmailError] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [error, setError] = useState("");
+const [email, setEmail] = useState("");
+const [emailError, setEmailError] = useState("");
+const [password, setPassword] = useState("");
+const [name, setName] = useState("");
+const [error, setError] = useState("");
 
-  // 📞 Phone Intelligence
-  const [phone, setPhone] = useState("");
-  const [phoneResult, setPhoneResult] = useState(null);
-  const [phoneLoading, setPhoneLoading] = useState(false);
+const [phone, setPhone] = useState("");
+const [phoneResult, setPhoneResult] = useState(null);
+const [phoneLoading, setPhoneLoading] = useState(false);
 
   /* =========================
      VALIDATION
