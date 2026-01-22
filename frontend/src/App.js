@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Fakenews from "./pages/Fakenews";
+import Deepfake from "./pages/Deepfake";
 import { LogOut, ShieldCheck, Phone, ScanFace } from "lucide-react";
 
 const API_BASE = "https://frost-7sn1.onrender.com";
