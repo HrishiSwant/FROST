@@ -7,8 +7,9 @@ beautifulsoup4
 scikit-learn
 numpy
 bcrypt
-torch
-torchvision
+torch==2.2.2+cpu
+torchvision==0.17.2+cpu
 pillow
 python-multipart==0.0.9
+
 
