@@ -3,10 +3,9 @@ import pickle
 import requests
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Header
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import Depends, Header
 from typing import Optional
 from supabase import create_client
 
@@ -27,17 +26,20 @@ if not SUPABASE_URL or not SUPABASE_KEY:
     raise RuntimeError("Supabase environment variables not set")
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# ------------------- AUTH HELPER -------------------
+
 def get_current_user(authorization: str = Header(...)):
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Invalid authorization header")
 
     token = authorization.replace("Bearer ", "")
-    user = supabase.auth.get_user(token).user
+    user_response = supabase.auth.get_user(token)
 
-    if not user:
+    if not user_response or not user_response.user:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
-    return user
+    return user_response.user
 
 # ------------------- APP -------------------
 
@@ -79,7 +81,7 @@ class NewsInput(BaseModel):
 class PhoneInput(BaseModel):
     phone: str
 
-# ------------------- AUTH (SUPABASE ONLY) -------------------
+# ------------------- AUTH (SUPABASE) -------------------
 
 @app.post("/api/signup")
 def signup(data: SignupInput):
@@ -87,18 +89,14 @@ def signup(data: SignupInput):
         "email": data.email,
         "password": data.password,
         "options": {
-            "data": {
-                "name": data.name
-            }
+            "data": {"name": data.name}
         }
     })
 
-    if response.user is None:
+    if not response.user:
         raise HTTPException(status_code=400, detail="Signup failed")
 
-    return {
-        "message": "Verification email sent. Please verify your email."
-    }
+    return {"message": "Verification email sent. Please verify your email."}
 
 
 @app.post("/api/login")
@@ -108,7 +106,7 @@ def login(data: LoginInput):
         "password": data.password
     })
 
-    if response.user is None:
+    if not response.user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     if not response.user.email_confirmed_at:
@@ -151,21 +149,22 @@ def fetch_from_nytimes(url: str) -> str:
     except:
         return ""
 
-# ------------------- FAKE NEWS -------------------
+# ------------------- DEEPFAKE (PROTECTED) -------------------
 
 @app.post("/api/deepfake/check")
 async def deepfake_check(
     file: UploadFile = File(...),
     user = Depends(get_current_user)
 ):
-    if not file.content_type.startswith("image/"):
+    if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Image file required")
 
     image_bytes = await file.read()
     result = analyze_image(image_bytes)
 
+    # 🔐 User-owned scan history
     supabase.table("scan_history").insert({
-        "user_id": user.id,     # 🔐 ownership
+        "user_id": user.id,
         "type": "deepfake",
         "input": file.filename,
         "verdict": result["verdict"],
@@ -176,7 +175,6 @@ async def deepfake_check(
         "filename": file.filename,
         **result
     }
-
 
 # ------------------- PHONE CHECK -------------------
 
@@ -215,26 +213,3 @@ def phone_check(data: PhoneInput):
 
     except:
         raise HTTPException(status_code=500, detail="Phone lookup failed")
-
-# ------------------- DEEPFAKE -------------------
-
-@app.post("/api/deepfake/check")
-async def deepfake_check(file: UploadFile = File(...)):
-    if not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Image file required")
-
-    image_bytes = await file.read()
-    result = analyze_image(image_bytes)
-
-    supabase.table("scan_history").insert({
-        "type": "deepfake",
-        "input": file.filename,
-        "verdict": result["verdict"],
-        "confidence": result["confidence"]
-    }).execute()
-
-    return {
-        "filename": file.filename,
-        **result
-    }
-
