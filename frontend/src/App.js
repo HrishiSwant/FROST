@@ -3,24 +3,23 @@ import Fakenews from "./pages/Fakenews";
 import Deepfake from "./pages/Deepfake";
 import { ShieldCheck, Phone, ScanFace } from "lucide-react";
 
-const API_BASE = "https://frost-7sn1.onrender.com";
+// ✅ Use environment variable with fallback
+const API_BASE = process.env.REACT_APP_API_URL || "https://frost-7sn1.onrender.com";
+
+console.log("API_BASE:", API_BASE); // Debug log
 
 function App() {
   const [currentView, setCurrentView] = useState("login");
-
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const [phone, setPhone] = useState("");
   const [phoneResult, setPhoneResult] = useState(null);
   const [phoneLoading, setPhoneLoading] = useState(false);
-
-  /* =========================
-     THEME + MENU
-  ========================= */
 
   const [theme, setTheme] = useState(
     localStorage.getItem("theme") || "cyber"
@@ -32,9 +31,28 @@ function App() {
     localStorage.setItem("theme", theme);
   }, [theme]);
 
-  /* =========================
-     VALIDATION
-  ========================= */
+  // ✅ Check backend health on mount
+  useEffect(() => {
+    const checkBackend = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/health`, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        });
+        
+        if (response.ok) {
+          console.log("✅ Backend is reachable");
+        } else {
+          console.warn("⚠️ Backend returned non-200 status");
+        }
+      } catch (err) {
+        console.error("❌ Backend unreachable:", err.message);
+        setError("Cannot connect to server. Please try again later.");
+      }
+    };
+    
+    checkBackend();
+  }, []);
 
   const validateEmail = (value) => {
     if (!value.trim()) return "Email cannot be blank";
@@ -49,21 +67,28 @@ function App() {
     return "";
   };
 
-  /* =========================
-     AUTH
-  ========================= */
-
   const handleLogin = async () => {
     setError("");
     setEmailError("");
+    setLoading(true);
 
     const emailMsg = validateEmail(email);
-    if (emailMsg) return setEmailError(emailMsg);
+    if (emailMsg) {
+      setEmailError(emailMsg);
+      setLoading(false);
+      return;
+    }
 
     const passwordMsg = validatePassword(password);
-    if (passwordMsg) return setError(passwordMsg);
+    if (passwordMsg) {
+      setError(passwordMsg);
+      setLoading(false);
+      return;
+    }
 
     try {
+      console.log("Attempting login to:", `${API_BASE}/api/login`);
+      
       const res = await fetch(`${API_BASE}/api/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -71,27 +96,60 @@ function App() {
       });
 
       const data = await res.json();
-      if (!res.ok) return setError(data.detail || "Login failed");
+      
+      if (!res.ok) {
+        setError(data.detail || "Login failed");
+        setLoading(false);
+        return;
+      }
+
+      console.log("✅ Login successful");
+      
+      // Store token if needed
+      if (data.access_token) {
+        localStorage.setItem("auth_token", data.access_token);
+      }
 
       setCurrentView("dashboard");
       setEmail("");
       setPassword("");
-    } catch {
-      setError("Server unreachable");
+      
+    } catch (err) {
+      console.error("Login error:", err);
+      setError("Server unreachable. Please check your connection.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleSignup = async () => {
     setError("");
     setEmailError("");
+    setLoading(true);
 
     const emailMsg = validateEmail(email);
-    if (emailMsg) return setEmailError(emailMsg);
+    if (emailMsg) {
+      setEmailError(emailMsg);
+      setLoading(false);
+      return;
+    }
 
     const passwordMsg = validatePassword(password);
-    if (passwordMsg) return setError(passwordMsg);
+    if (passwordMsg) {
+      setError(passwordMsg);
+      setLoading(false);
+      return;
+    }
+
+    if (!name.trim()) {
+      setError("Name is required");
+      setLoading(false);
+      return;
+    }
 
     try {
+      console.log("Attempting signup to:", `${API_BASE}/api/signup`);
+      
       const res = await fetch(`${API_BASE}/api/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -99,36 +157,55 @@ function App() {
       });
 
       const data = await res.json();
-      if (!res.ok) return setError(data.detail || "Signup failed");
+      
+      if (!res.ok) {
+        setError(data.detail || "Signup failed");
+        setLoading(false);
+        return;
+      }
 
-      setCurrentView("dashboard");
+      console.log("✅ Signup successful");
+      alert("Verification email sent! Please check your inbox.");
+      
+      setCurrentView("login");
       setName("");
       setEmail("");
       setPassword("");
-    } catch {
-      setError("Server unreachable");
+      
+    } catch (err) {
+      console.error("Signup error:", err);
+      setError("Server unreachable. Please check your connection.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleLogout = () => {
+    localStorage.removeItem("auth_token");
     setCurrentView("login");
     setPhone("");
     setPhoneResult(null);
     setMenuOpen(false);
   };
 
-  /* =========================
-     PHONE CHECK
-  ========================= */
-
   const checkPhone = async () => {
     setPhoneLoading(true);
     setPhoneResult(null);
 
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      setPhoneResult({ error: "Please login again" });
+      setPhoneLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch(`${API_BASE}/api/phone/check`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({ phone }),
       });
 
@@ -142,10 +219,6 @@ function App() {
       setPhoneLoading(false);
     }
   };
-
-  /* =========================
-     PHONE PAGE
-  ========================= */
 
   if (currentView === "phone") {
     return (
@@ -196,16 +269,8 @@ function App() {
     );
   }
 
-  /* =========================
-     FAKE NEWS / DEEPFAKE
-  ========================= */
-
   if (currentView === "fake-news") return <Fakenews />;
   if (currentView === "deepfake") return <Deepfake />;
-
-  /* =========================
-     DASHBOARD
-  ========================= */
 
   if (currentView === "dashboard") {
     return (
@@ -294,10 +359,6 @@ function App() {
     );
   }
 
-  /* =========================
-     LOGIN / SIGNUP
-  ========================= */
-
   return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="frost-card p-8 w-full max-w-md">
@@ -305,7 +366,7 @@ function App() {
           {currentView === "login" ? "Login" : "Sign Up"}
         </h2>
 
-        {error && <p className="text-red-400 text-sm">{error}</p>}
+        {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
 
         {currentView === "signup" && (
           <input
@@ -326,7 +387,7 @@ function App() {
           }}
         />
         {emailError && (
-          <p className="text-red-400 text-sm">{emailError}</p>
+          <p className="text-red-400 text-sm mb-2">{emailError}</p>
         )}
 
         <input
@@ -339,9 +400,14 @@ function App() {
 
         <button
           onClick={currentView === "login" ? handleLogin : handleSignup}
-          className="w-full bg-cyan-500 py-2 rounded text-black font-bold"
+          disabled={loading}
+          className="w-full bg-cyan-500 py-2 rounded text-black font-bold disabled:opacity-50"
         >
-          {currentView === "login" ? "Login" : "Sign Up"}
+          {loading 
+            ? "Please wait..." 
+            : currentView === "login" 
+            ? "Login" 
+            : "Sign Up"}
         </button>
 
         <p
