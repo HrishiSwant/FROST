@@ -99,31 +99,6 @@ def signup(data: SignupInput):
     return {"message": "Verification email sent. Please verify your email."}
 
 
-@app.post("/api/login")
-def login(data: LoginInput):
-    response = supabase.auth.sign_in_with_password({
-        "email": data.email,
-        "password": data.password
-    })
-
-    if not response.user:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-
-    if not response.user.email_confirmed_at:
-        raise HTTPException(
-            status_code=403,
-            detail="Please verify your email before logging in"
-        )
-
-    return {
-        "message": "Login successful",
-        "user": {
-            "id": response.user.id,
-            "email": response.user.email
-        },
-        "access_token": response.session.access_token
-    }
-
 # ------------------- NEWS UTILITIES -------------------
 
 def scrape_article(url: str) -> str:
@@ -213,3 +188,4 @@ def phone_check(data: PhoneInput):
 
     except:
         raise HTTPException(status_code=500, detail="Phone lookup failed")
+
