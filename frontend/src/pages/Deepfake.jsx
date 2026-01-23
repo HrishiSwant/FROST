@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { supabase } from "../supabaseClient"; // ✅ make sure this exists
+import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
 
 const API_BASE = "https://frost-7sn1.onrender.com";
 
@@ -7,39 +7,55 @@ export default function Deepfake() {
   const [file, setFile] = useState(null);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [session, setSession] = useState(null);
+
+  // 🔐 Get session once on load
+  useEffect(() => {
+    const getSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      setSession(data.session);
+    };
+    getSession();
+  }, []);
 
   const scanImage = async () => {
-    if (!file) return;
+    if (!file) {
+      alert("Please select an image");
+      return;
+    }
+
+    if (!session) {
+      alert("Please login again");
+      return;
+    }
 
     setLoading(true);
     setResult(null);
 
-    // 🔐 Get logged-in session
-    const {
-      data: { session },
-      error,
-    } = await supabase.auth.getSession();
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
 
-    if (error || !session) {
-      alert("Please login again");
+      const res = await fetch(`${API_BASE}/api/deepfake/check`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: formData,
+      });
+
+      if (!res.ok) {
+        throw new Error("Scan failed");
+      }
+
+      const data = await res.json();
+      setResult(data);
+    } catch (err) {
+      alert("Error scanning image");
+      console.error(err);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const res = await fetch(`${API_BASE}/api/deepfake/check`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${session.access_token}`, // ✅ REQUIRED
-      },
-      body: formData,
-    });
-
-    const data = await res.json();
-    setResult(data);
-    setLoading(false);
   };
 
   return (
@@ -59,7 +75,7 @@ export default function Deepfake() {
         <button
           onClick={scanImage}
           disabled={loading}
-          className="w-full bg-cyan-500 py-2 rounded text-black font-bold"
+          className="w-full bg-cyan-500 py-2 rounded text-black font-bold disabled:opacity-60"
         >
           {loading ? "Scanning..." : "Scan Image"}
         </button>
