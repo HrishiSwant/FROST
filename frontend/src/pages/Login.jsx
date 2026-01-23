@@ -5,10 +5,8 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    setLoading(true);
     setError(null);
 
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -18,37 +16,33 @@ export default function Login() {
 
     if (error) {
       setError(error.message);
-      setLoading(false);
       return;
     }
 
-    // ✅ LOGIN SUCCESS
-    console.log("Logged in:", data.user);
-    window.location.href = "/deepfake"; // or dashboard
+    // ✅ login successful
+    window.location.href = "/deepfake";
   };
 
   return (
     <div className="login-card">
       <h2>Login</h2>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {error && <p className="error">{error}</p>}
 
       <input
+        placeholder="Email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        placeholder="Email"
       />
 
       <input
         type="password"
+        placeholder="Password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        placeholder="Password"
       />
 
-      <button onClick={handleLogin} disabled={loading}>
-        {loading ? "Logging in..." : "Login"}
-      </button>
+      <button onClick={handleLogin}>Login</button>
     </div>
   );
 }
