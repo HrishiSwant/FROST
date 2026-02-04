@@ -36,4 +36,3 @@ def detect_deepfake(image_bytes: bytes):
         "verdict": "FAKE" if prediction.item() == 1 else "REAL",
         "confidence": round(confidence.item() * 100, 2)
     }
-
