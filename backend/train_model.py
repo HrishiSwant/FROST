@@ -24,11 +24,11 @@ X_vec = vectorizer.fit_transform(X)
 model = LogisticRegression(max_iter=1000)
 model.fit(X_vec, y)
 
-# ✅ SAVE SEPARATELY (IMPORTANT)
+# âœ… SAVE SEPARATELY (IMPORTANT)
 with open("model.pkl", "wb") as f:
     pickle.dump(model, f)
 
 with open("vectorizer.pkl", "wb") as f:
     pickle.dump(vectorizer, f)
 
-print("✅ Model & vectorizer saved correctly")
+print("âœ… Model & vectorizer saved correctly")
