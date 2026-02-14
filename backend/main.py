@@ -47,10 +47,14 @@ app = FastAPI(title="FROST Cyber Security API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://frost1-ruddy.vercel.app"
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # ------------------- LOAD ML MODELS -------------------
 
@@ -188,4 +192,5 @@ def phone_check(data: PhoneInput):
 
     except:
         raise HTTPException(status_code=500, detail="Phone lookup failed")
+
 
