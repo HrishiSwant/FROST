@@ -194,3 +194,28 @@ def phone_check(data: PhoneInput):
         raise HTTPException(status_code=500, detail="Phone lookup failed")
 
 
+# ------------------- NEWS CHECK -------------------
+@app.post("/api/news/check")
+def news_check(data: NewsInput):
+    text = data.text
+
+    if not text and data.url:
+        text = scrape_article(data.url)
+
+        if not text:
+            text = fetch_from_nytimes(data.url)
+
+    if not text:
+        raise HTTPException(status_code=400, detail="No news text provided")
+
+    vec = vectorizer.transform([text])
+    prediction = model.predict(vec)[0]
+
+    verdict = "FAKE" if prediction == 1 else "REAL"
+
+    return {
+        "verdict": verdict,
+        "confidence": 85  # replace with real confidence if available
+    }
+
+
