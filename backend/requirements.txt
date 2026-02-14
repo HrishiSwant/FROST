@@ -1,5 +1,5 @@
 fastapi
-uvicorn
+uvicorn[standard]
 supabase
 python-dotenv
 requests
@@ -10,3 +10,5 @@ bcrypt
 pillow
 python-multipart
 opencv-python-headless
+joblib
+httpx
