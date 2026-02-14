@@ -48,12 +48,15 @@ app = FastAPI(title="FROST Cyber Security API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://frost1-ruddy.vercel.app"
+        "https://frost1-ruddy.vercel.app",
+        "https://vercel.com",
+        "https://*.vercel.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 
 # ------------------- LOAD ML MODELS -------------------
@@ -217,5 +220,6 @@ def news_check(data: NewsInput):
         "verdict": verdict,
         "confidence": 85  # replace with real confidence if available
     }
+
 
 
