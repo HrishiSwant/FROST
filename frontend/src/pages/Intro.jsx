@@ -16,7 +16,7 @@ export default function Intro() {
 
       <button
         className="start-btn"
-        onClick={() => navigate("/features")}
+        onClick={() => navigate("")}
       >
         Get Started
       </button>
