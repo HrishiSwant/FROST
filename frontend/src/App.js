@@ -168,6 +168,33 @@ function App() {
   if (currentView === "deepfake")
     return <Deepfake />;
 
+  // ---------------- INTRO ----------------
+      if (currentView === "intro") {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="frost-card p-10 text-center">
+
+        <h1 className="text-4xl text-cyan-400 font-bold mb-4">
+          FROST Cyber Security Platform
+        </h1>
+
+        <p className="mb-6 text-slate-300">
+          Detect Fake News, Deepfake Images, and Suspicious Phone Numbers using AI.
+        </p>
+
+        <button
+          onClick={() => setCurrentView("dashboard")}
+          className="bg-cyan-500 px-6 py-3 rounded text-black font-bold"
+        >
+          Get Started
+        </button>
+
+      </div>
+    </div>
+  );
+}
+
+
   // ---------------- DASHBOARD ----------------
 
   if (currentView === "dashboard") {
