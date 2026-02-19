@@ -146,6 +146,12 @@ function App() {
     );
   }
 
+// ---------------- OTHER ----------------
+if (currentView === "deepfake")
+  return <Deepfake goBack={() => setCurrentView("dashboard")} />;
+
+if (currentView === "fake-news")
+  return <Fakenews goBack={() => setCurrentView("dashboard")} />;
   // ---------------- DASHBOARD ----------------
 
   if (currentView === "dashboard") {
