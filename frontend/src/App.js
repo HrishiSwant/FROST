@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { ShieldCheck, Phone, ScanFace } from "lucide-react";
 
+import Deepfake from "./pages/Deepfake";
+import Fakenews from "./pages/Fakenews";
+
 const API_BASE =
   process.env.REACT_APP_API_URL ||
   "https://frost-7sn1.onrender.com";
