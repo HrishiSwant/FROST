@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-
+import { useState } from "react";
 import { ShieldCheck, Phone, ScanFace } from "lucide-react";
 
 const API_BASE =
@@ -8,13 +7,11 @@ const API_BASE =
 
 function App() {
 
-  // intro is now first screen
   const [currentView, setCurrentView] = useState("intro");
 
   const [phone, setPhone] = useState("");
   const [phoneResult, setPhoneResult] = useState(null);
   const [phoneLoading, setPhoneLoading] = useState(false);
-
 
   // ---------------- INTRO PAGE ----------------
 
@@ -34,7 +31,7 @@ function App() {
 
           <button
             onClick={() => setCurrentView("dashboard")}
-            className="bg-cyan-500 px-6 py-3 rounded text-black font-bold hover:scale-105 transition"
+            className="bg-cyan-500 px-6 py-3 rounded text-black font-bold"
           >
             Get Started
           </button>
@@ -118,11 +115,8 @@ function App() {
             <div className="mt-4 space-y-1">
 
               <p>Country: {phoneResult.country}</p>
-
               <p>Carrier: {phoneResult.carrier}</p>
-
               <p>Type: {phoneResult.lineType}</p>
-
               <p>Location: {phoneResult.location}</p>
 
               <p className="text-cyan-300">
@@ -148,37 +142,6 @@ function App() {
       </div>
     );
   }
-
-  // ---------------- OTHER PAGES ----------------
-
-
-
-  // ---------------- INTRO ----------------
-      if (currentView === "intro") {
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="frost-card p-10 text-center">
-
-        <h1 className="text-4xl text-cyan-400 font-bold mb-4">
-          FROST Cyber Security Platform
-        </h1>
-
-        <p className="mb-6 text-slate-300">
-          Detect Fake News, Deepfake Images, and Suspicious Phone Numbers using AI.
-        </p>
-
-        <button
-          onClick={() => setCurrentView("dashboard")}
-          className="bg-cyan-500 px-6 py-3 rounded text-black font-bold"
-        >
-          Get Started
-        </button>
-
-      </div>
-    </div>
-  );
-}
-
 
   // ---------------- DASHBOARD ----------------
 
@@ -211,16 +174,16 @@ function App() {
 
           <div className="grid md:grid-cols-3 gap-6">
 
-            <div className="frost-card p-6">
+            <div
+              className="frost-card p-6 cursor-pointer"
+              onClick={() => alert("Fake News page not added yet")}
+            >
 
               <ShieldCheck className="text-cyan-400" />
 
-              <button
-                onClick={() => setCurrentView("fake-news")}
-                className="w-full mt-4 bg-cyan-500 py-2 rounded text-black font-bold"
-              >
-                Fake News
-              </button>
+              <p className="mt-2 text-cyan-300">
+                Fake News Detection
+              </p>
 
             </div>
 
@@ -239,7 +202,7 @@ function App() {
 
             <div
               className="frost-card p-6 cursor-pointer"
-              onClick={() => setCurrentView("deepfake")}
+              onClick={() => alert("Deepfake page not added yet")}
             >
 
               <ScanFace className="text-cyan-400" />
@@ -258,6 +221,7 @@ function App() {
     );
   }
 
+  return null;
 }
 
 export default App;
