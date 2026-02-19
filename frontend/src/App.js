@@ -161,11 +161,7 @@ function App() {
 
   // ---------------- OTHER PAGES ----------------
 
-  if (currentView === "fake-news")
-    return <Fakenews />;
 
-  if (currentView === "deepfake")
-    return <Deepfake />;
 
   // ---------------- INTRO ----------------
       if (currentView === "intro") {
