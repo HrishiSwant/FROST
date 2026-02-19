@@ -184,9 +184,9 @@ if (currentView === "fake-news")
           <div className="grid md:grid-cols-3 gap-6">
 
             <div
-              className="frost-card p-6 cursor-pointer"
-              onClick={() => alert("Fake News page not added yet")}
-            >
+  className="frost-card p-6 cursor-pointer hover:scale-105 transition"
+  onClick={() => setCurrentView("fake-news")}
+>
 
               <ShieldCheck className="text-cyan-400" />
 
@@ -210,9 +210,9 @@ if (currentView === "fake-news")
             </div>
 
             <div
-              className="frost-card p-6 cursor-pointer"
-              onClick={() => alert("Deepfake page not added yet")}
-            >
+  className="frost-card p-6 cursor-pointer hover:scale-105 transition"
+  onClick={() => setCurrentView("deepfake")}
+>
 
               <ScanFace className="text-cyan-400" />
 
