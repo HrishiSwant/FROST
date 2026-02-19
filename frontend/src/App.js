@@ -15,16 +15,6 @@ function App() {
   const [phoneResult, setPhoneResult] = useState(null);
   const [phoneLoading, setPhoneLoading] = useState(false);
 
-  const [theme, setTheme] = useState(
-    localStorage.getItem("theme") || "cyber"
-  );
-
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("theme", theme);
-  }, [theme]);
 
   // ---------------- INTRO PAGE ----------------
 
