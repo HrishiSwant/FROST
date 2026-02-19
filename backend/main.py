@@ -3,48 +3,26 @@ import pickle
 import requests
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
-from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Header
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
-from supabase import create_client
 
-# âœ… Deepfake detector
 from deepfake_detector import analyze_image
 
 # ------------------- ENV -------------------
 
 load_dotenv()
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")  # backend only
 NYT_API_KEY = os.getenv("NYT_API_KEY")
 NUMVERIFY_KEY = os.getenv("NUMVERIFY_KEY")
 ABSTRACT_KEY = os.getenv("ABSTRACT_KEY")
-
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise RuntimeError("Supabase environment variables not set")
-
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-# ------------------- AUTH HELPER -------------------
-
-def get_current_user(authorization: str = Header(...)):
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid authorization header")
-
-    token = authorization.replace("Bearer ", "")
-    user_response = supabase.auth.get_user(token)
-
-    if not user_response or not user_response.user:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-
-    return user_response.user
 
 # ------------------- APP -------------------
 
 app = FastAPI(title="FROST Cyber Security API")
 
+# Allow your Vercel frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -55,8 +33,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-
 # ------------------- LOAD ML MODELS -------------------
 
 try:
@@ -65,19 +41,11 @@ try:
 
     with open("vectorizer.pkl", "rb") as f:
         vectorizer = pickle.load(f)
-except Exception:
-    raise RuntimeError("ML model or vectorizer missing")
+
+except Exception as e:
+    raise RuntimeError(f"ML model or vectorizer missing: {e}")
 
 # ------------------- SCHEMAS -------------------
-
-class SignupInput(BaseModel):
-    name: str
-    email: str
-    password: str
-
-class LoginInput(BaseModel):
-    email: str
-    password: str
 
 class NewsInput(BaseModel):
     text: Optional[str] = None
@@ -86,23 +54,18 @@ class NewsInput(BaseModel):
 class PhoneInput(BaseModel):
     phone: str
 
-# ------------------- AUTH (SUPABASE) -------------------
+# ------------------- ROOT ENDPOINT -------------------
 
-@app.post("/api/signup")
-def signup(data: SignupInput):
-    response = supabase.auth.sign_up({
-        "email": data.email,
-        "password": data.password,
-        "options": {
-            "data": {"name": data.name}
-        }
-    })
-
-    if not response.user:
-        raise HTTPException(status_code=400, detail="Signup failed")
-
-    return {"message": "Verification email sent. Please verify your email."}
-
+@app.get("/")
+def root():
+    return {
+        "message": "FROST Cyber Security API running",
+        "features": [
+            "Fake News Detection",
+            "Deepfake Detection",
+            "Phone Number Risk Analysis"
+        ]
+    }
 
 # ------------------- NEWS UTILITIES -------------------
 
@@ -117,87 +80,31 @@ def scrape_article(url: str) -> str:
 def fetch_from_nytimes(url: str) -> str:
     if not NYT_API_KEY:
         return ""
+
     try:
         keywords = url.split("/")[-1].replace("-", " ")
+
         res = requests.get(
             "https://api.nytimes.com/svc/search/v2/articlesearch.json",
-            params={"q": keywords, "api-key": NYT_API_KEY},
+            params={
+                "q": keywords,
+                "api-key": NYT_API_KEY
+            },
             timeout=6
         )
+
         docs = res.json().get("response", {}).get("docs", [])
+
         return docs[0]["abstract"] if docs else ""
+
     except:
         return ""
 
-# ------------------- DEEPFAKE (PROTECTED) -------------------
-
-@app.post("/api/deepfake/check")
-async def deepfake_check(
-    file: UploadFile = File(...),
-    user = Depends(get_current_user)
-):
-    if not file.content_type or not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Image file required")
-
-    image_bytes = await file.read()
-    result = analyze_image(image_bytes)
-
-    # ðŸ” User-owned scan history
-    supabase.table("scan_history").insert({
-        "user_id": user.id,
-        "type": "deepfake",
-        "input": file.filename,
-        "verdict": result["verdict"],
-        "confidence": result["confidence"]
-    }).execute()
-
-    return {
-        "filename": file.filename,
-        **result
-    }
-
-# ------------------- PHONE CHECK -------------------
-
-@app.post("/api/phone/check")
-def phone_check(data: PhoneInput):
-    try:
-        numverify = requests.get(
-            "https://apilayer.net/api/validate",
-            params={"access_key": NUMVERIFY_KEY, "number": data.phone},
-            timeout=6
-        ).json()
-
-        abstract = requests.get(
-            "https://phonevalidation.abstractapi.com/v1/",
-            params={"api_key": ABSTRACT_KEY, "phone": data.phone},
-            timeout=6
-        ).json()
-
-        score = 0
-        if not numverify.get("valid"):
-            score += 40
-        if numverify.get("line_type") == "voip":
-            score += 30
-        if abstract.get("is_disposable"):
-            score += 30
-
-        return {
-            "phone": data.phone,
-            "country": numverify.get("country_name"),
-            "carrier": numverify.get("carrier"),
-            "lineType": numverify.get("line_type"),
-            "location": abstract.get("location"),
-            "fraudScore": min(score, 100),
-            "verdict": "HIGH RISK" if score >= 60 else "SAFE"
-        }
-
-    except:
-        raise HTTPException(status_code=500, detail="Phone lookup failed")
-
-
 # ------------------- NEWS CHECK -------------------
+
 @app.post("/api/news/check")
 def news_check(data: NewsInput):
+
     text = data.text
 
     if not text and data.url:
@@ -207,18 +114,100 @@ def news_check(data: NewsInput):
             text = fetch_from_nytimes(data.url)
 
     if not text:
-        raise HTTPException(status_code=400, detail="No news text provided")
+        raise HTTPException(
+            status_code=400,
+            detail="No news text provided"
+        )
 
     vec = vectorizer.transform([text])
+
     prediction = model.predict(vec)[0]
 
     verdict = "FAKE" if prediction == 1 else "REAL"
 
     return {
         "verdict": verdict,
-        "confidence": 85  # replace with real confidence if available
+        "confidence": 85
     }
 
+# ------------------- DEEPFAKE CHECK -------------------
 
+@app.post("/api/deepfake/check")
+async def deepfake_check(file: UploadFile = File(...)):
 
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=400,
+            detail="Image file required"
+        )
 
+    image_bytes = await file.read()
+
+    result = analyze_image(image_bytes)
+
+    return {
+        "filename": file.filename,
+        "verdict": result["verdict"],
+        "confidence": result["confidence"]
+    }
+
+# ------------------- PHONE CHECK -------------------
+
+@app.post("/api/phone/check")
+def phone_check(data: PhoneInput):
+
+    try:
+
+        numverify = requests.get(
+            "https://apilayer.net/api/validate",
+            params={
+                "access_key": NUMVERIFY_KEY,
+                "number": data.phone
+            },
+            timeout=6
+        ).json()
+
+        abstract = requests.get(
+            "https://phonevalidation.abstractapi.com/v1/",
+            params={
+                "api_key": ABSTRACT_KEY,
+                "phone": data.phone
+            },
+            timeout=6
+        ).json()
+
+        score = 0
+
+        if not numverify.get("valid"):
+            score += 40
+
+        if numverify.get("line_type") == "voip":
+            score += 30
+
+        if abstract.get("is_disposable"):
+            score += 30
+
+        return {
+
+            "phone": data.phone,
+
+            "country": numverify.get("country_name"),
+
+            "carrier": numverify.get("carrier"),
+
+            "lineType": numverify.get("line_type"),
+
+            "location": abstract.get("location"),
+
+            "fraudScore": min(score, 100),
+
+            "verdict":
+                "HIGH RISK" if score >= 60
+                else "SAFE"
+        }
+
+    except:
+        raise HTTPException(
+            status_code=500,
+            detail="Phone lookup failed"
+        )
