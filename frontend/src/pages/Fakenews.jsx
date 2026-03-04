@@ -87,7 +87,7 @@ export default function Fakenews({ goBack }) {
 
         {result && !result.error && (
 
-          <div className="mt-4">
+          <div className="mt-4 space-y-2">
 
             <p className="text-lg">
 
@@ -104,6 +104,18 @@ export default function Fakenews({ goBack }) {
             </p>
 
             <p>Confidence: {result.confidence}%</p>
+
+            {result.headline &&
+              <p className="text-sm text-slate-400">
+                Headline: {result.headline}
+              </p>
+            }
+
+            {result.source &&
+              <p className="text-sm text-slate-400">
+                Fact Checked By: {result.source}
+              </p>
+            }
 
           </div>
 
