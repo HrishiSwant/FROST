@@ -100,6 +100,7 @@ def preprocess(text):
 def fake_news_signals(text):
 
     score = 0
+    signals = []
 
     keywords = [
         "breaking",
@@ -114,14 +115,17 @@ def fake_news_signals(text):
     for k in keywords:
         if k in text:
             score += 5
+            signals.append(f"Clickbait keyword detected: {k}")
 
     if text.count("!") > 3:
         score += 10
+        signals.append("Excessive exclamation marks")
 
     if text.isupper():
         score += 20
+        signals.append("All caps headline")
 
-    return score
+    return score, signals
 
 
 # ---------------- SCRAPE ARTICLE ----------------
@@ -209,6 +213,20 @@ def google_fact_check(query):
     return None
 
 
+# ---------------- BUILD INVESTIGATION REPORT ----------------
+
+def build_report(verdict, confidence, signals, headline="", source=None, rating=None):
+
+    return {
+        "verdict": verdict,
+        "confidence": confidence,
+        "headline": headline,
+        "signals": signals,
+        "source": source,
+        "originalRating": rating
+    }
+
+
 # ---------------- NEWS CHECK ----------------
 
 @app.post("/api/news/check")
@@ -220,10 +238,13 @@ def news_check(data: NewsInput):
     if not text and data.url:
 
         if check_domain(data.url):
-            return {
-                "verdict": "SUSPICIOUS SOURCE",
-                "confidence": 85
-            }
+
+            return build_report(
+                "SUSPICIOUS",
+                85,
+                ["Domain flagged as suspicious"],
+                headline=""
+            )
 
         headline, article = scrape_article(data.url)
 
@@ -235,7 +256,7 @@ def news_check(data: NewsInput):
             detail="No news text provided"
         )
 
-    # -------- GOOGLE FACT CHECK --------
+    # -------- FACT CHECK DATABASE --------
 
     fact = google_fact_check(text)
 
@@ -252,14 +273,14 @@ def news_check(data: NewsInput):
         else:
             verdict = "FAKE"
 
-        return {
-            "verdict": verdict,
-            "confidence": 95,
-            "source": fact["publisher"],
-            "factCheckUrl": fact["url"],
-            "originalRating": fact["rating"],
-            "headline": headline
-        }
+        return build_report(
+            verdict,
+            95,
+            ["Matched verified fact-check database"],
+            headline,
+            fact["publisher"],
+            fact["rating"]
+        )
 
     # -------- ML MODEL --------
 
@@ -271,17 +292,18 @@ def news_check(data: NewsInput):
 
     ai_score = 70 if prediction == 1 else 20
 
-    signal_score = fake_news_signals(cleaned)
+    signal_score, signals = fake_news_signals(cleaned)
 
     total = min(ai_score + signal_score, 100)
 
     verdict = "FAKE" if total >= 60 else "REAL"
 
-    return {
-        "verdict": verdict,
-        "confidence": total,
-        "headline": headline
-    }
+    return build_report(
+        verdict,
+        total,
+        signals,
+        headline
+    )
 
 
 # ---------------- DEEPFAKE CHECK ----------------
