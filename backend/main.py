@@ -1,6 +1,8 @@
 import os
 import pickle
 import requests
+import phonenumbers
+from phonenumbers import carrier, geocoder
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 from fastapi import FastAPI, HTTPException, UploadFile, File
@@ -22,12 +24,9 @@ ABSTRACT_KEY = os.getenv("ABSTRACT_KEY")
 
 app = FastAPI(title="FROST Cyber Security API")
 
-# Allow your Vercel frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://frost1-ruddy.vercel.app"
-    ],
+    allow_origins=["https://frost1-ruddy.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -54,7 +53,7 @@ class NewsInput(BaseModel):
 class PhoneInput(BaseModel):
     phone: str
 
-# ------------------- ROOT ENDPOINT -------------------
+# ------------------- ROOT -------------------
 
 @app.get("/")
 def root():
@@ -63,9 +62,15 @@ def root():
         "features": [
             "Fake News Detection",
             "Deepfake Detection",
-            "Phone Number Risk Analysis"
+            "Phone Scam Risk Detection"
         ]
     }
+
+# ------------------- HEALTH CHECK -------------------
+
+@app.get("/health")
+def health():
+    return {"status": "running"}
 
 # ------------------- NEWS UTILITIES -------------------
 
@@ -151,63 +156,109 @@ async def deepfake_check(file: UploadFile = File(...)):
         "confidence": result["confidence"]
     }
 
-# ------------------- PHONE CHECK -------------------
+# ------------------- PHONE SCAM CHECK -------------------
 
 @app.post("/api/phone/check")
 def phone_check(data: PhoneInput):
 
     try:
 
-        numverify = requests.get(
-            "https://apilayer.net/api/validate",
-            params={
-                "access_key": NUMVERIFY_KEY,
-                "number": data.phone
-            },
-            timeout=6
-        ).json()
-
-        abstract = requests.get(
-            "https://phonevalidation.abstractapi.com/v1/",
-            params={
-                "api_key": ABSTRACT_KEY,
-                "phone": data.phone
-            },
-            timeout=6
-        ).json()
-
+        phone = data.phone
         score = 0
+        reasons = []
 
-        if not numverify.get("valid"):
-            score += 40
+        # ---------------- LOCAL PHONE ANALYSIS ----------------
 
-        if numverify.get("line_type") == "voip":
-            score += 30
+        try:
+            parsed = phonenumbers.parse(phone)
 
-        if abstract.get("is_disposable"):
-            score += 30
+            carrier_name = carrier.name_for_number(parsed, "en")
+            location = geocoder.description_for_number(parsed, "en")
+
+        except:
+            carrier_name = "Unknown"
+            location = "Unknown"
+            score += 20
+            reasons.append("Invalid number format")
+
+        # ---------------- NUMVERIFY API ----------------
+
+        numverify = {}
+        if NUMVERIFY_KEY:
+            try:
+                numverify = requests.get(
+                    "https://apilayer.net/api/validate",
+                    params={
+                        "access_key": NUMVERIFY_KEY,
+                        "number": phone
+                    },
+                    timeout=6
+                ).json()
+
+                if not numverify.get("valid"):
+                    score += 40
+                    reasons.append("Invalid number")
+
+                if numverify.get("line_type") == "voip":
+                    score += 30
+                    reasons.append("VOIP number")
+
+            except:
+                pass
+
+        # ---------------- ABSTRACT API ----------------
+
+        abstract = {}
+        if ABSTRACT_KEY:
+            try:
+                abstract = requests.get(
+                    "https://phonevalidation.abstractapi.com/v1/",
+                    params={
+                        "api_key": ABSTRACT_KEY,
+                        "phone": phone
+                    },
+                    timeout=6
+                ).json()
+
+                if abstract.get("is_disposable"):
+                    score += 30
+                    reasons.append("Disposable number")
+
+            except:
+                pass
+
+        # ---------------- PATTERN ANALYSIS ----------------
+
+        if phone.endswith("0000"):
+            score += 10
+            reasons.append("Suspicious number pattern")
+
+        # ---------------- FINAL RESULT ----------------
+
+        fraud_score = min(score, 100)
+
+        verdict = "HIGH RISK" if fraud_score >= 60 else "SAFE"
 
         return {
 
-            "phone": data.phone,
+            "phone": phone,
 
-            "country": numverify.get("country_name"),
+            "carrier": carrier_name,
 
-            "carrier": numverify.get("carrier"),
+            "location": location,
 
             "lineType": numverify.get("line_type"),
 
-            "location": abstract.get("location"),
+            "fraudScore": fraud_score,
 
-            "fraudScore": min(score, 100),
+            "verdict": verdict,
 
-            "verdict":
-                "HIGH RISK" if score >= 60
-                else "SAFE"
+            "reasons": reasons
         }
 
-    except:
+    except Exception as e:
+
         raise HTTPException(
             status_code=500,
-            detail="Phone lookup failed"
+            detail=f"Phone lookup failed: {e}"
         )
