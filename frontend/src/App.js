@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ShieldCheck, Phone, ScanFace } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ShieldCheck, Phone, ScanFace, Sun, Moon } from "lucide-react";
 
 import Deepfake from "./pages/Deepfake";
 import Fakenews from "./pages/Fakenews";
@@ -11,15 +11,25 @@ const API_BASE =
 function App() {
 
   const [currentView, setCurrentView] = useState("intro");
+  const [theme, setTheme] = useState("dark");
 
   const [phone, setPhone] = useState("");
   const [phoneResult, setPhoneResult] = useState(null);
   const [phoneLoading, setPhoneLoading] = useState(false);
 
-  // ---------------- INTRO PAGE ----------------
+  useEffect(() => {
+
+    document.body.className =
+      theme === "dark"
+        ? "bg-slate-900 text-white"
+        : "bg-white text-black";
+
+  }, [theme]);
 
   if (currentView === "intro") {
+
     return (
+
       <div className="min-h-screen flex items-center justify-center text-center">
 
         <div className="frost-card p-10 max-w-xl">
@@ -28,8 +38,8 @@ function App() {
             FROST Cyber Security Platform
           </h1>
 
-          <p className="text-slate-300 mb-6">
-            Detect Fake News, Verify Phone Numbers, and Identify Deepfake Images using AI-powered cybersecurity tools.
+          <p className="mb-6">
+            Detect Fake News, Identify Deepfakes, and Analyze Scam Phone Numbers using AI.
           </p>
 
           <button
@@ -45,8 +55,6 @@ function App() {
     );
   }
 
-  // ---------------- PHONE PAGE ----------------
-
   if (currentView === "phone") {
 
     const checkPhone = async () => {
@@ -58,30 +66,24 @@ function App() {
 
         const res = await fetch(`${API_BASE}/api/phone/check`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ phone })
         });
 
         const data = await res.json();
 
-        if (!res.ok)
-          throw new Error(data.detail);
-
         setPhoneResult(data);
 
-      } catch (err) {
+      } catch {
 
-        setPhoneResult({
-          error: err.message
-        });
+        setPhoneResult({ error: "Lookup failed" });
 
       } finally {
 
         setPhoneLoading(false);
 
       }
+
     };
 
     return (
@@ -108,18 +110,11 @@ function App() {
             {phoneLoading ? "Scanning..." : "Scan Number"}
           </button>
 
-          {phoneResult?.error &&
-            <p className="mt-4 text-red-400">
-              {phoneResult.error}
-            </p>
-          }
+          {phoneResult && (
 
-          {phoneResult && !phoneResult.error &&
-            <div className="mt-4 space-y-1">
+            <div className="mt-4">
 
-              <p>Country: {phoneResult.country}</p>
               <p>Carrier: {phoneResult.carrier}</p>
-              <p>Type: {phoneResult.lineType}</p>
               <p>Location: {phoneResult.location}</p>
 
               <p className="text-cyan-300">
@@ -131,7 +126,8 @@ function App() {
               </p>
 
             </div>
-          }
+
+          )}
 
           <button
             className="mt-4 text-cyan-300"
@@ -146,19 +142,17 @@ function App() {
     );
   }
 
-// ---------------- OTHER ----------------
-if (currentView === "deepfake")
-  return <Deepfake goBack={() => setCurrentView("dashboard")} />;
+  if (currentView === "deepfake")
+    return <Deepfake goBack={() => setCurrentView("dashboard")} />;
 
-if (currentView === "fake-news")
-  return <Fakenews goBack={() => setCurrentView("dashboard")} />;
-  // ---------------- DASHBOARD ----------------
+  if (currentView === "fake-news")
+    return <Fakenews goBack={() => setCurrentView("dashboard")} />;
 
   if (currentView === "dashboard") {
 
     return (
 
-      <div className="min-h-screen text-slate-50">
+      <div className="min-h-screen">
 
         <nav className="border-b border-cyan-400/20 px-6 py-4 flex justify-between">
 
@@ -166,12 +160,22 @@ if (currentView === "fake-news")
             FROST
           </div>
 
-          <button
-            onClick={() => setCurrentView("intro")}
-            className="text-cyan-300"
-          >
-            Home
-          </button>
+          <div className="flex gap-4">
+
+            <button onClick={() =>
+              setTheme(theme === "dark" ? "light" : "dark")
+            }>
+              {theme === "dark" ? <Sun /> : <Moon />}
+            </button>
+
+            <button
+              onClick={() => setCurrentView("intro")}
+              className="text-cyan-300"
+            >
+              Home
+            </button>
+
+          </div>
 
         </nav>
 
@@ -184,9 +188,9 @@ if (currentView === "fake-news")
           <div className="grid md:grid-cols-3 gap-6">
 
             <div
-  className="frost-card p-6 cursor-pointer hover:scale-105 transition"
-  onClick={() => setCurrentView("fake-news")}
->
+              className="frost-card p-6 cursor-pointer hover:scale-105 transition"
+              onClick={() => setCurrentView("fake-news")}
+            >
 
               <ShieldCheck className="text-cyan-400" />
 
@@ -197,22 +201,22 @@ if (currentView === "fake-news")
             </div>
 
             <div
-              className="frost-card p-6 cursor-pointer"
+              className="frost-card p-6 cursor-pointer hover:scale-105 transition"
               onClick={() => setCurrentView("phone")}
             >
 
               <Phone className="text-cyan-400" />
 
               <p className="mt-2 text-cyan-300">
-                Caller ID
+                Caller Intelligence
               </p>
 
             </div>
 
             <div
-  className="frost-card p-6 cursor-pointer hover:scale-105 transition"
-  onClick={() => setCurrentView("deepfake")}
->
+              className="frost-card p-6 cursor-pointer hover:scale-105 transition"
+              onClick={() => setCurrentView("deepfake")}
+            >
 
               <ScanFace className="text-cyan-400" />
 
