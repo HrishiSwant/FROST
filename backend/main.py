@@ -92,7 +92,7 @@ def preprocess(text):
     text = re.sub(r"[^a-zA-Z ]", "", text)
     text = re.sub(r"\s+", " ", text)
 
-    return text
+    return text.strip()
 
 
 # ---------------- FAKE NEWS SIGNALS ----------------
@@ -142,7 +142,7 @@ def scrape_article(url: str):
 
         headline = ""
         if soup.title:
-            headline = soup.title.get_text()
+            headline = soup.title.get_text().strip()
 
         paragraphs = soup.find_all("p")
 
@@ -159,13 +159,14 @@ def scrape_article(url: str):
 
 def check_domain(url):
 
-    domain = urlparse(url).netloc
+    domain = urlparse(url).netloc.lower()
 
     suspicious = [
         "clickbait",
         "viralnews",
         "fakeupdate",
-        "rumor"
+        "rumor",
+        "gossip"
     ]
 
     for s in suspicious:
@@ -213,7 +214,7 @@ def google_fact_check(query):
     return None
 
 
-# ---------------- BUILD INVESTIGATION REPORT ----------------
+# ---------------- BUILD REPORT ----------------
 
 def build_report(verdict, confidence, signals, headline="", source=None, rating=None):
 
@@ -242,7 +243,7 @@ def news_check(data: NewsInput):
             return build_report(
                 "SUSPICIOUS",
                 85,
-                ["Domain flagged as suspicious"],
+                ["Domain flagged as suspicious source"],
                 headline=""
             )
 
@@ -266,10 +267,13 @@ def news_check(data: NewsInput):
 
         if "true" in rating and "mostly" not in rating:
             verdict = "REAL"
+
         elif "mostly true" in rating:
             verdict = "REAL"
+
         elif "half" in rating:
             verdict = "SUSPICIOUS"
+
         else:
             verdict = "FAKE"
 
@@ -296,7 +300,17 @@ def news_check(data: NewsInput):
 
     total = min(ai_score + signal_score, 100)
 
-    verdict = "FAKE" if total >= 60 else "REAL"
+    # -------- FINAL VERDICT LOGIC --------
+
+    if total >= 60:
+        verdict = "FAKE"
+
+    elif total >= 30:
+        verdict = "SUSPICIOUS"
+
+    else:
+        verdict = "UNKNOWN"
+        signals.append("Low confidence classification")
 
     return build_report(
         verdict,
