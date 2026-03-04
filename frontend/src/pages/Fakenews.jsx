@@ -61,7 +61,7 @@ export default function Fakenews({ goBack }) {
       <div className="frost-card p-8 w-full max-w-xl">
 
         <h2 className="text-cyan-400 text-xl mb-4">
-          Fake News Detection
+          Fake News Investigation
         </h2>
 
         <textarea
@@ -76,7 +76,7 @@ export default function Fakenews({ goBack }) {
           onClick={checkNews}
           className="w-full bg-cyan-500 py-2 rounded text-black font-bold"
         >
-          {loading ? "Analyzing..." : "Check News"}
+          {loading ? "Scanning Intelligence..." : "Investigate News"}
         </button>
 
         {result?.error &&
@@ -87,7 +87,7 @@ export default function Fakenews({ goBack }) {
 
         {result && !result.error && (
 
-          <div className="mt-4 space-y-2">
+          <div className="mt-4 space-y-3">
 
             <p className="text-lg">
 
@@ -96,6 +96,8 @@ export default function Fakenews({ goBack }) {
               <span className={
                 result.verdict === "FAKE"
                 ? "text-red-400"
+                : result.verdict === "SUSPICIOUS"
+                ? "text-yellow-400"
                 : "text-green-400"
               }>
                 {" "}{result.verdict}
@@ -116,6 +118,21 @@ export default function Fakenews({ goBack }) {
                 Fact Checked By: {result.source}
               </p>
             }
+
+            {result.originalRating &&
+              <p className="text-sm text-slate-400">
+                Original Rating: {result.originalRating}
+              </p>
+            }
+
+            {result.signals && result.signals.length > 0 && (
+              <div className="text-yellow-400 text-sm">
+                <p className="font-bold">Investigation Signals:</p>
+                {result.signals.map((s, i) => (
+                  <p key={i}>• {s}</p>
+                ))}
+              </div>
+            )}
 
           </div>
 
