@@ -208,12 +208,24 @@ def news_check(data: NewsInput):
 
     if fact:
 
-        return {
-            "verdict": fact["rating"],
-            "confidence": 95,
-            "source": fact["publisher"],
-            "factCheckUrl": fact["url"]
-        }
+       rating = fact["rating"].lower()
+
+if "true" in rating and "mostly" not in rating:
+    verdict = "REAL"
+elif "mostly true" in rating:
+    verdict = "REAL"
+elif "half" in rating:
+    verdict = "SUSPICIOUS"
+else:
+    verdict = "FAKE"
+
+return {
+    "verdict": verdict,
+    "confidence": 95,
+    "source": fact["publisher"],
+    "factCheckUrl": fact["url"],
+    "originalRating": fact["rating"]
+}
 
     # -------- ML MODEL --------
 
@@ -337,3 +349,4 @@ def phone_check(data: PhoneInput):
 
         "reasons": reasons
     }
+
