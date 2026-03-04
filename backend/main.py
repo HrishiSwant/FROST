@@ -3,9 +3,11 @@ import pickle
 import requests
 import phonenumbers
 import re
+
 from phonenumbers import carrier, geocoder
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
+
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,11 +15,18 @@ from typing import Optional
 
 from deepfake_detector import analyze_image
 
+
+# ---------------- ENV ----------------
+
 load_dotenv()
 
 NYT_API_KEY = os.getenv("NYT_API_KEY")
 NUMVERIFY_KEY = os.getenv("NUMVERIFY_KEY")
 ABSTRACT_KEY = os.getenv("ABSTRACT_KEY")
+FACTCHECK_API_KEY = os.getenv("FACTCHECK_API_KEY")
+
+
+# ---------------- APP ----------------
 
 app = FastAPI(title="FROST Cyber Security API")
 
@@ -29,7 +38,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# ---------------- LOAD ML MODEL ----------------
+
 try:
+
     with open("model.pkl", "rb") as f:
         model = pickle.load(f)
 
@@ -39,20 +52,38 @@ try:
 except Exception as e:
     raise RuntimeError(f"ML model or vectorizer missing: {e}")
 
+
+# ---------------- SCHEMAS ----------------
+
 class NewsInput(BaseModel):
     text: Optional[str] = None
     url: Optional[str] = None
 
+
 class PhoneInput(BaseModel):
     phone: str
 
+
+# ---------------- ROOT ----------------
+
 @app.get("/")
 def root():
-    return {"message": "FROST API running"}
+    return {
+        "message": "FROST Cyber Security API running",
+        "features": [
+            "Fake News Detection",
+            "Deepfake Detection",
+            "Phone Scam Detection"
+        ]
+    }
+
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+# ---------------- TEXT CLEANING ----------------
 
 def preprocess(text):
 
@@ -63,6 +94,8 @@ def preprocess(text):
 
     return text
 
+
+# ---------------- FAKE NEWS SIGNALS ----------------
 
 def fake_news_signals(text):
 
@@ -91,16 +124,68 @@ def fake_news_signals(text):
     return score
 
 
+# ---------------- SCRAPE ARTICLE ----------------
+
 def scrape_article(url: str):
 
     try:
-        res = requests.get(url, timeout=6)
+
+        headers = {"User-Agent": "Mozilla/5.0"}
+
+        res = requests.get(url, headers=headers, timeout=6)
+
         soup = BeautifulSoup(res.text, "html.parser")
-        return " ".join(p.text for p in soup.find_all("p"))[:10000]
+
+        paragraphs = soup.find_all("p")
+
+        text = " ".join(p.get_text() for p in paragraphs)
+
+        return text[:10000]
 
     except:
+
         return ""
 
+
+# ---------------- GOOGLE FACT CHECK ----------------
+
+def google_fact_check(query):
+
+    if not FACTCHECK_API_KEY:
+        return None
+
+    try:
+
+        res = requests.get(
+            "https://factchecktools.googleapis.com/v1alpha1/claims:search",
+            params={
+                "query": query[:200],
+                "key": FACTCHECK_API_KEY
+            },
+            timeout=6
+        )
+
+        data = res.json()
+
+        claims = data.get("claims")
+
+        if claims:
+
+            review = claims[0]["claimReview"][0]
+
+            return {
+                "publisher": review["publisher"]["name"],
+                "rating": review["textualRating"],
+                "url": review["url"]
+            }
+
+    except:
+        return None
+
+    return None
+
+
+# ---------------- NEWS CHECK ----------------
 
 @app.post("/api/news/check")
 def news_check(data: NewsInput):
@@ -108,7 +193,6 @@ def news_check(data: NewsInput):
     text = data.text
 
     if not text and data.url:
-
         text = scrape_article(data.url)
 
     if not text:
@@ -117,6 +201,21 @@ def news_check(data: NewsInput):
             status_code=400,
             detail="No news text provided"
         )
+
+    # -------- GOOGLE FACT CHECK --------
+
+    fact = google_fact_check(text)
+
+    if fact:
+
+        return {
+            "verdict": fact["rating"],
+            "confidence": 95,
+            "source": fact["publisher"],
+            "factCheckUrl": fact["url"]
+        }
+
+    # -------- ML MODEL --------
 
     cleaned = preprocess(text)
 
@@ -138,6 +237,8 @@ def news_check(data: NewsInput):
     }
 
 
+# ---------------- DEEPFAKE CHECK ----------------
+
 @app.post("/api/deepfake/check")
 async def deepfake_check(file: UploadFile = File(...)):
 
@@ -155,11 +256,15 @@ async def deepfake_check(file: UploadFile = File(...)):
     return result
 
 
+# ---------------- PHONE SCAM CHECK ----------------
+
 @app.post("/api/phone/check")
 def phone_check(data: PhoneInput):
 
     phone = data.phone
+
     score = 0
+
     reasons = []
 
     try:
@@ -194,11 +299,15 @@ def phone_check(data: PhoneInput):
             ).json()
 
             if not numverify.get("valid"):
+
                 score += 40
+
                 reasons.append("Invalid number")
 
             if numverify.get("line_type") == "voip":
+
                 score += 30
+
                 reasons.append("VOIP number")
 
     except:
@@ -207,6 +316,7 @@ def phone_check(data: PhoneInput):
     if phone.endswith("0000"):
 
         score += 10
+
         reasons.append("Suspicious number pattern")
 
     fraud_score = min(score, 100)
@@ -216,9 +326,14 @@ def phone_check(data: PhoneInput):
     return {
 
         "phone": phone,
+
         "carrier": carrier_name,
+
         "location": location,
+
         "fraudScore": fraud_score,
+
         "verdict": verdict,
+
         "reasons": reasons
     }
