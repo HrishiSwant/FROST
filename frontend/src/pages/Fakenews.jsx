@@ -17,6 +17,8 @@ export default function Fakenews({ goBack }) {
     setLoading(true);
     setResult(null);
 
+    const isURL = text.startsWith("http");
+
     try {
 
       const res = await fetch(
@@ -26,7 +28,10 @@ export default function Fakenews({ goBack }) {
           headers: {
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({ text })
+          body: JSON.stringify({
+            text: isURL ? null : text,
+            url: isURL ? text : null
+          })
         }
       );
 
@@ -60,9 +65,9 @@ export default function Fakenews({ goBack }) {
         </h2>
 
         <textarea
-          placeholder="Paste news text here..."
-          className="w-full p-2 bg-slate-800 rounded mb-4"
-          rows="5"
+          placeholder="Paste news text OR article URL..."
+          className="w-full p-3 bg-slate-800 rounded mb-4"
+          rows="6"
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
@@ -80,19 +85,29 @@ export default function Fakenews({ goBack }) {
           </p>
         }
 
-        {result && !result.error &&
+        {result && !result.error && (
+
           <div className="mt-4">
 
-            <p>
-              Verdict: <b>{result.verdict}</b>
+            <p className="text-lg">
+
+              Verdict:
+
+              <span className={
+                result.verdict === "FAKE"
+                ? "text-red-400"
+                : "text-green-400"
+              }>
+                {" "}{result.verdict}
+              </span>
+
             </p>
 
-            <p>
-              Confidence: {result.confidence}%
-            </p>
+            <p>Confidence: {result.confidence}%</p>
 
           </div>
-        }
+
+        )}
 
         <button
           onClick={goBack}
