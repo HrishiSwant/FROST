@@ -3,6 +3,7 @@ import pickle
 import requests
 import phonenumbers
 import re
+from urllib.parse import urlparse
 
 from phonenumbers import carrier, geocoder
 from dotenv import load_dotenv
@@ -42,7 +43,6 @@ app.add_middleware(
 # ---------------- LOAD ML MODEL ----------------
 
 try:
-
     with open("model.pkl", "rb") as f:
         model = pickle.load(f)
 
@@ -132,19 +132,43 @@ def scrape_article(url: str):
 
         headers = {"User-Agent": "Mozilla/5.0"}
 
-        res = requests.get(url, headers=headers, timeout=6)
+        res = requests.get(url, headers=headers, timeout=8)
 
         soup = BeautifulSoup(res.text, "html.parser")
+
+        headline = ""
+        if soup.title:
+            headline = soup.title.get_text()
 
         paragraphs = soup.find_all("p")
 
         text = " ".join(p.get_text() for p in paragraphs)
 
-        return text[:10000]
+        return headline, text[:10000]
 
     except:
 
-        return ""
+        return "", ""
+
+
+# ---------------- DOMAIN CHECK ----------------
+
+def check_domain(url):
+
+    domain = urlparse(url).netloc
+
+    suspicious = [
+        "clickbait",
+        "viralnews",
+        "fakeupdate",
+        "rumor"
+    ]
+
+    for s in suspicious:
+        if s in domain:
+            return True
+
+    return False
 
 
 # ---------------- GOOGLE FACT CHECK ----------------
@@ -191,12 +215,21 @@ def google_fact_check(query):
 def news_check(data: NewsInput):
 
     text = data.text
+    headline = ""
 
     if not text and data.url:
-        text = scrape_article(data.url)
+
+        if check_domain(data.url):
+            return {
+                "verdict": "SUSPICIOUS SOURCE",
+                "confidence": 85
+            }
+
+        headline, article = scrape_article(data.url)
+
+        text = headline + " " + article
 
     if not text:
-
         raise HTTPException(
             status_code=400,
             detail="No news text provided"
@@ -208,24 +241,25 @@ def news_check(data: NewsInput):
 
     if fact:
 
-       rating = fact["rating"].lower()
+        rating = fact["rating"].lower()
 
-if "true" in rating and "mostly" not in rating:
-    verdict = "REAL"
-elif "mostly true" in rating:
-    verdict = "REAL"
-elif "half" in rating:
-    verdict = "SUSPICIOUS"
-else:
-    verdict = "FAKE"
+        if "true" in rating and "mostly" not in rating:
+            verdict = "REAL"
+        elif "mostly true" in rating:
+            verdict = "REAL"
+        elif "half" in rating:
+            verdict = "SUSPICIOUS"
+        else:
+            verdict = "FAKE"
 
-return {
-    "verdict": verdict,
-    "confidence": 95,
-    "source": fact["publisher"],
-    "factCheckUrl": fact["url"],
-    "originalRating": fact["rating"]
-}
+        return {
+            "verdict": verdict,
+            "confidence": 95,
+            "source": fact["publisher"],
+            "factCheckUrl": fact["url"],
+            "originalRating": fact["rating"],
+            "headline": headline
+        }
 
     # -------- ML MODEL --------
 
@@ -245,7 +279,8 @@ return {
 
     return {
         "verdict": verdict,
-        "confidence": total
+        "confidence": total,
+        "headline": headline
     }
 
 
@@ -276,7 +311,6 @@ def phone_check(data: PhoneInput):
     phone = data.phone
 
     score = 0
-
     reasons = []
 
     try:
@@ -290,11 +324,9 @@ def phone_check(data: PhoneInput):
     except:
 
         carrier_name = "Unknown"
-
         location = "Unknown"
 
         score += 20
-
         reasons.append("Invalid number format")
 
     try:
@@ -311,15 +343,11 @@ def phone_check(data: PhoneInput):
             ).json()
 
             if not numverify.get("valid"):
-
                 score += 40
-
                 reasons.append("Invalid number")
 
             if numverify.get("line_type") == "voip":
-
                 score += 30
-
                 reasons.append("VOIP number")
 
     except:
@@ -328,7 +356,6 @@ def phone_check(data: PhoneInput):
     if phone.endswith("0000"):
 
         score += 10
-
         reasons.append("Suspicious number pattern")
 
     fraud_score = min(score, 100)
@@ -336,17 +363,10 @@ def phone_check(data: PhoneInput):
     verdict = "HIGH RISK" if fraud_score >= 60 else "SAFE"
 
     return {
-
         "phone": phone,
-
         "carrier": carrier_name,
-
         "location": location,
-
         "fraudScore": fraud_score,
-
         "verdict": verdict,
-
         "reasons": reasons
     }
-
