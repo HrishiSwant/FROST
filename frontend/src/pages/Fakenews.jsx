@@ -98,6 +98,8 @@ export default function Fakenews({ goBack }) {
                 ? "text-red-400"
                 : result.verdict === "SUSPICIOUS"
                 ? "text-yellow-400"
+                : result.verdict === "UNKNOWN"
+                ? "text-gray-400"
                 : "text-green-400"
               }>
                 {" "}{result.verdict}
