@@ -1,5 +1,6 @@
 fastapi
 uvicorn[standard]
+phonenumbers
 python-dotenv
 requests
 beautifulsoup4
@@ -11,4 +12,5 @@ python-multipart
 opencv-python-headless
 joblib
 httpx
+
 
