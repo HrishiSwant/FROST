@@ -70,15 +70,15 @@ class PhoneInput(BaseModel):
 
 @app.get("/")
 def root():
-return {
-"message": "FROST Cyber Security API running",
-"features": [
-"Fake News Detection",
-"Deepfake Detection",
-"Phone Scam Detection"
-]
-}
-
+    return {
+        "message": "FROST Cyber Security API running",
+        "features": [
+        "Fake News Detection",
+        "Deepfake Detection",
+        "Phone Scam Detection"
+            ]
+        }
+        
 @app.get("/health")
 def health():
 return {"status": "ok"}
@@ -95,15 +95,12 @@ return {
 # ---------------- TEXT CLEANING ----------------
 
 def preprocess(text):
+    text = text.lower()
+    text = re.sub(r"http\S+", "", text)
+    text = re.sub(r"[^a-zA-Z ]", "", text)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
 
-```
-text = text.lower()
-text = re.sub(r"http\S+", "", text)
-text = re.sub(r"[^a-zA-Z ]", "", text)
-text = re.sub(r"\s+", " ", text)
-
-return text.strip()
-```
 
 # ---------------- FAKE NEWS SIGNALS ----------------
 
@@ -425,6 +422,7 @@ return {
     "reasons": reasons
 }
 ```
+
 
 
 
