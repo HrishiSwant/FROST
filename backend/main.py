@@ -60,11 +60,11 @@ except Exception as e:
 # ---------------- SCHEMAS ----------------
 
 class NewsInput(BaseModel):
-text: Optional[str] = None
-url: Optional[str] = None
+    text: Optional[str] = None
+    url: Optional[str] = None
 
 class PhoneInput(BaseModel):
-phone: str
+    phone: str
 
 # ---------------- ROOT ----------------
 
@@ -425,5 +425,6 @@ return {
     "reasons": reasons
 }
 ```
+
 
 
