@@ -39,8 +39,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    )
-
+)
 
 # ---------------- LOAD ML MODEL ----------------
 
@@ -74,14 +73,13 @@ def root():
     return {
         "message": "FROST Cyber Security API running",
         "features": [
-        "Fake News Detection",
-        "Deepfake Detection",
-        "Phone Scam Detection"
-            ]
-        }
+            "Fake News Detection",
+            "Deepfake Detection",
+            "Phone Scam Detection"
+        ]
+    }
         
 @app.get("/health")
-
 def health():
     return {"status": "ok"}
 
@@ -92,7 +90,7 @@ def system_status():
         "fake_news_model": "loaded",
         "deepfake_detector": "ready",
         "phone_detection": "active"
-        }
+    }
 
 # ---------------- TEXT CLEANING ----------------
 
@@ -109,6 +107,7 @@ def preprocess(text):
 def fake_news_signals(text):
     score = 0
     signals = []
+
     keywords = [
         "breaking",
         "shocking",
@@ -117,41 +116,52 @@ def fake_news_signals(text):
         "viral",
         "secret",
         "exposed"
-        ]
+    ]
+
     for k in keywords:
         if k in text:
             score += 5
             signals.append(f"Clickbait keyword detected: {k}")
-            if text.count("!") > 3:
-                score += 10
-                signals.append("Excessive exclamation marks")
-                if text.isupper():
-                    score += 20
-                    signals.append("All caps headline")
-                    return score, signals
+
+    if text.count("!") > 3:
+        score += 10
+        signals.append("Excessive exclamation marks")
+
+    if text.isupper():
+        score += 20
+        signals.append("All caps headline")
+
+    return score, signals
 
 # ---------------- SCRAPE ARTICLE ----------------
 
 def scrape_article(url: str):
     try:
         headers = {"User-Agent": "Mozilla/5.0"}
+
         res = requests.get(url, headers=headers, timeout=8)
+
         soup = BeautifulSoup(res.text, "html.parser")
+
         headline = ""
         if soup.title:
             headline = soup.title.get_text().strip()
-            paragraphs = soup.find_all("p")
-            text = " ".join(p.get_text() for p in paragraphs)
-            return headline, text[:10000]
-            except Exception as e:
-                logging.error(f"Article scraping failed: {e}")
-                return "", ""
 
+        paragraphs = soup.find_all("p")
+
+        text = " ".join(p.get_text() for p in paragraphs)
+
+        return headline, text[:10000]
+
+    except Exception as e:
+        logging.error(f"Article scraping failed: {e}")
+        return "", ""
 
 # ---------------- DOMAIN CHECK ----------------
 
 def check_domain(url):
     domain = urlparse(url).netloc.lower()
+
     suspicious = [
         "clickbait",
         "viralnews",
@@ -160,39 +170,46 @@ def check_domain(url):
         "gossip"
     ]
 
-for s in suspicious:
-    if s in domain:
-        return True
-return False
+    for s in suspicious:
+        if s in domain:
+            return True
+
+    return False
 
 # ---------------- GOOGLE FACT CHECK ----------------
 
 def google_fact_check(query):
     if not FACTCHECK_API_KEY:
         return None
-try:
-    res = requests.get(
-        "https://factchecktools.googleapis.com/v1alpha1/claims:search",
-        params={
-            "query": query[:200],
-            "key": FACTCHECK_API_KEY
-        },
-        timeout=6
-        )
-data = res.json()
-claims = data.get("claims")
-if claims:
-    review = claims[0]["claimReview"][0]
-return {
-    "publisher": review["publisher"]["name"],
-    "rating": review["textualRating"],
-    "url": review["url"]
-    }
 
-except Exception as e:
-logging.error(f"Fact check API error: {e}")
-return None
-return None
+    try:
+        res = requests.get(
+            "https://factchecktools.googleapis.com/v1alpha1/claims:search",
+            params={
+                "query": query[:200],
+                "key": FACTCHECK_API_KEY
+            },
+            timeout=6
+        )
+
+        data = res.json()
+
+        claims = data.get("claims")
+
+        if claims:
+            review = claims[0]["claimReview"][0]
+
+            return {
+                "publisher": review["publisher"]["name"],
+                "rating": review["textualRating"],
+                "url": review["url"]
+            }
+
+    except Exception as e:
+        logging.error(f"Fact check API error: {e}")
+        return None
+
+    return None
 
 # ---------------- BUILD REPORT ----------------
 
@@ -204,185 +221,167 @@ def build_report(verdict, confidence, signals, headline="", source=None, rating=
         "signals": signals,
         "source": source,
         "originalRating": rating
-        }
-
+    }
 
 # ---------------- NEWS CHECK ----------------
 
 @app.post("/api/news/check")
 def news_check(data: NewsInput):
+    text = data.text
+    headline = ""
 
-text = data.text
-headline = ""
+    if not text and data.url:
+        if check_domain(data.url):
+            return build_report(
+                "SUSPICIOUS",
+                85,
+                ["Domain flagged as suspicious source"],
+                headline=""
+            )
 
-if not text and data.url:
-    if check_domain(data.url):
-        return build_report(
-            "SUSPICIOUS",
-            85,
-            ["Domain flagged as suspicious source"],
-            headline=""
+        headline, article = scrape_article(data.url)
+
+        text = headline + " " + article
+
+    if not text:
+        raise HTTPException(
+            status_code=400,
+            detail="No news text provided"
         )
-    headline, article = scrape_article(data.url)
-text = headline + " " + article
-if not text:
-    raise HTTPException(
-        status_code=400,
-        detail="No news text provided"
-    )
 
-# -------- FACT CHECK DATABASE --------
+    # -------- FACT CHECK DATABASE --------
 
-fact = google_fact_check(text)
+    fact = google_fact_check(text)
 
-if fact:
+    if fact:
+        rating = fact["rating"].lower()
 
-    rating = fact["rating"].lower()
+        if "true" in rating and "mostly" not in rating:
+            verdict = "REAL"
 
-    if "true" in rating and "mostly" not in rating:
-        verdict = "REAL"
+        elif "mostly true" in rating:
+            verdict = "REAL"
 
-    elif "mostly true" in rating:
-        verdict = "REAL"
+        elif "half" in rating:
+            verdict = "SUSPICIOUS"
 
-    elif "half" in rating:
+        else:
+            verdict = "FAKE"
+
+        return build_report(
+            verdict,
+            95,
+            ["Matched verified fact-check database"],
+            headline,
+            fact["publisher"],
+            fact["rating"]
+        )
+
+    # -------- ML MODEL --------
+
+    cleaned = preprocess(text)
+
+    vec = vectorizer.transform([cleaned])
+
+    prediction = model.predict(vec)[0]
+
+    probability = model.predict_proba(vec)[0].max() * 100
+
+    signal_score, signals = fake_news_signals(cleaned)
+
+    total = min(probability + signal_score, 100)
+
+    if total >= 60:
+        verdict = "FAKE"
+
+    elif total >= 30:
         verdict = "SUSPICIOUS"
 
     else:
-        verdict = "FAKE"
+        verdict = "UNKNOWN"
+        signals.append("Low confidence classification")
 
     return build_report(
         verdict,
-        95,
-        ["Matched verified fact-check database"],
-        headline,
-        fact["publisher"],
-        fact["rating"]
+        total,
+        signals,
+        headline
     )
-
-# -------- ML MODEL --------
-
-cleaned = preprocess(text)
-
-vec = vectorizer.transform([cleaned])
-
-prediction = model.predict(vec)[0]
-
-probability = model.predict_proba(vec)[0].max() * 100
-
-signal_score, signals = fake_news_signals(cleaned)
-
-total = min(probability + signal_score, 100)
-
-if total >= 60:
-    verdict = "FAKE"
-
-elif total >= 30:
-    verdict = "SUSPICIOUS"
-
-else:
-    verdict = "UNKNOWN"
-    signals.append("Low confidence classification")
-
-return build_report(
-    verdict,
-    total,
-    signals,
-    headline
-)
-```
 
 # ---------------- DEEPFAKE CHECK ----------------
 
 @app.post("/api/deepfake/check")
 async def deepfake_check(file: UploadFile = File(...)):
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=400,
+            detail="Image required"
+        )
 
-```
-if not file.content_type.startswith("image/"):
+    image_bytes = await file.read()
 
-    raise HTTPException(
-        status_code=400,
-        detail="Image required"
-    )
+    result = analyze_image(image_bytes)
 
-image_bytes = await file.read()
-
-result = analyze_image(image_bytes)
-
-return result
-```
+    return result
 
 # ---------------- PHONE SCAM CHECK ----------------
 
 @app.post("/api/phone/check")
 def phone_check(data: PhoneInput):
+    phone = data.phone
 
-```
-phone = data.phone
+    score = 0
+    reasons = []
 
-score = 0
-reasons = []
+    try:
+        parsed = phonenumbers.parse(phone)
 
-try:
+        carrier_name = carrier.name_for_number(parsed, "en")
 
-    parsed = phonenumbers.parse(phone)
+        location = geocoder.description_for_number(parsed, "en")
 
-    carrier_name = carrier.name_for_number(parsed, "en")
+    except:
+        carrier_name = "Unknown"
+        location = "Unknown"
 
-    location = geocoder.description_for_number(parsed, "en")
+        score += 20
+        reasons.append("Invalid number format")
 
-except:
+    try:
+        if NUMVERIFY_KEY:
+            numverify = requests.get(
+                "https://apilayer.net/api/validate",
+                params={
+                    "access_key": NUMVERIFY_KEY,
+                    "number": phone
+                },
+                timeout=6
+            ).json()
 
-    carrier_name = "Unknown"
-    location = "Unknown"
+            if not numverify.get("valid"):
+                score += 40
+                reasons.append("Invalid number")
 
-    score += 20
-    reasons.append("Invalid number format")
+            if numverify.get("line_type") == "voip":
+                score += 30
+                reasons.append("VOIP number")
 
-try:
+    except Exception as e:
+        logging.error(f"Numverify API failed: {e}")
 
-    if NUMVERIFY_KEY:
+    if phone.endswith("0000"):
+        score += 10
+        reasons.append("Suspicious number pattern")
 
-        numverify = requests.get(
-            "https://apilayer.net/api/validate",
-            params={
-                "access_key": NUMVERIFY_KEY,
-                "number": phone
-            },
-            timeout=6
-        ).json()
+    fraud_score = min(score, 100)
 
-        if not numverify.get("valid"):
-            score += 40
-            reasons.append("Invalid number")
+    verdict = "HIGH RISK" if fraud_score >= 60 else "SAFE"
 
-        if numverify.get("line_type") == "voip":
-            score += 30
-            reasons.append("VOIP number")
-
-except Exception as e:
-    logging.error(f"Numverify API failed: {e}")
-
-if phone.endswith("0000"):
-
-    score += 10
-    reasons.append("Suspicious number pattern")
-
-fraud_score = min(score, 100)
-
-verdict = "HIGH RISK" if fraud_score >= 60 else "SAFE"
-
-return {
-    "phone": phone,
-    "carrier": carrier_name,
-    "location": location,
-    "fraudScore": fraud_score,
-    "verdict": verdict,
-    "reasons": reasons
-}
-```
-
-
-
-
-
+    return {
+        "phone": phone,
+        "carrier": carrier_name,
+        "location": location,
+        "fraudScore": fraud_score,
+        "verdict": verdict,
+        "reasons": reasons
+    }
