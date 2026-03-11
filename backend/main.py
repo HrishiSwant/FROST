@@ -34,12 +34,13 @@ logging.basicConfig(level=logging.INFO)
 app = FastAPI(title="FROST Cyber Security API")
 
 app.add_middleware(
-CORSMiddleware,
-allow_origins=["*"],
-allow_credentials=True,
-allow_methods=["*"],
-allow_headers=["*"],
-)
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    )
+
 
 # ---------------- LOAD ML MODEL ----------------
 
@@ -80,17 +81,18 @@ def root():
         }
         
 @app.get("/health")
+
 def health():
-return {"status": "ok"}
+    return {"status": "ok"}
 
 @app.get("/system/status")
 def system_status():
-return {
-"api": "running",
-"fake_news_model": "loaded",
-"deepfake_detector": "ready",
-"phone_detection": "active"
-}
+    return {
+        "api": "running",
+        "fake_news_model": "loaded",
+        "deepfake_detector": "ready",
+        "phone_detection": "active"
+        }
 
 # ---------------- TEXT CLEANING ----------------
 
@@ -105,98 +107,70 @@ def preprocess(text):
 # ---------------- FAKE NEWS SIGNALS ----------------
 
 def fake_news_signals(text):
-
-```
-score = 0
-signals = []
-
-keywords = [
-    "breaking",
-    "shocking",
-    "unbelievable",
-    "you wont believe",
-    "viral",
-    "secret",
-    "exposed"
-]
-
-for k in keywords:
-    if k in text:
-        score += 5
-        signals.append(f"Clickbait keyword detected: {k}")
-
-if text.count("!") > 3:
-    score += 10
-    signals.append("Excessive exclamation marks")
-
-if text.isupper():
-    score += 20
-    signals.append("All caps headline")
-
-return score, signals
-```
+    score = 0
+    signals = []
+    keywords = [
+        "breaking",
+        "shocking",
+        "unbelievable",
+        "you wont believe",
+        "viral",
+        "secret",
+        "exposed"
+        ]
+    for k in keywords:
+        if k in text:
+            score += 5
+            signals.append(f"Clickbait keyword detected: {k}")
+            if text.count("!") > 3:
+                score += 10
+                signals.append("Excessive exclamation marks")
+                if text.isupper():
+                    score += 20
+                    signals.append("All caps headline")
+                    return score, signals
 
 # ---------------- SCRAPE ARTICLE ----------------
 
 def scrape_article(url: str):
+    try:
+        headers = {"User-Agent": "Mozilla/5.0"}
+        res = requests.get(url, headers=headers, timeout=8)
+        soup = BeautifulSoup(res.text, "html.parser")
+        headline = ""
+        if soup.title:
+            headline = soup.title.get_text().strip()
+            paragraphs = soup.find_all("p")
+            text = " ".join(p.get_text() for p in paragraphs)
+            return headline, text[:10000]
+            except Exception as e:
+                logging.error(f"Article scraping failed: {e}")
+                return "", ""
 
-```
-try:
-
-    headers = {"User-Agent": "Mozilla/5.0"}
-
-    res = requests.get(url, headers=headers, timeout=8)
-
-    soup = BeautifulSoup(res.text, "html.parser")
-
-    headline = ""
-    if soup.title:
-        headline = soup.title.get_text().strip()
-
-    paragraphs = soup.find_all("p")
-
-    text = " ".join(p.get_text() for p in paragraphs)
-
-    return headline, text[:10000]
-
-except Exception as e:
-
-    logging.error(f"Article scraping failed: {e}")
-    return "", ""
-```
 
 # ---------------- DOMAIN CHECK ----------------
 
 def check_domain(url):
-
-```
-domain = urlparse(url).netloc.lower()
-
-suspicious = [
-    "clickbait",
-    "viralnews",
-    "fakeupdate",
-    "rumor",
-    "gossip"
-]
+    domain = urlparse(url).netloc.lower()
+    suspicious = [
+        "clickbait",
+        "viralnews",
+        "fakeupdate",
+        "rumor",
+        "gossip"
+    ]
 
 for s in suspicious:
     if s in domain:
         return True
-
 return False
-```
 
 # ---------------- GOOGLE FACT CHECK ----------------
 
 def google_fact_check(query):
-
-```
-if not FACTCHECK_API_KEY:
-    return None
-
+    if not FACTCHECK_API_KEY:
+        return None
 try:
-
     res = requests.get(
         "https://factchecktools.googleapis.com/v1alpha1/claims:search",
         params={
@@ -204,68 +178,53 @@ try:
             "key": FACTCHECK_API_KEY
         },
         timeout=6
-    )
-
-    data = res.json()
-
-    claims = data.get("claims")
-
-    if claims:
-
-        review = claims[0]["claimReview"][0]
-
-        return {
-            "publisher": review["publisher"]["name"],
-            "rating": review["textualRating"],
-            "url": review["url"]
-        }
+        )
+data = res.json()
+claims = data.get("claims")
+if claims:
+    review = claims[0]["claimReview"][0]
+return {
+    "publisher": review["publisher"]["name"],
+    "rating": review["textualRating"],
+    "url": review["url"]
+    }
 
 except Exception as e:
-    logging.error(f"Fact check API error: {e}")
-    return None
-
+logging.error(f"Fact check API error: {e}")
 return None
-```
+return None
 
 # ---------------- BUILD REPORT ----------------
 
 def build_report(verdict, confidence, signals, headline="", source=None, rating=None):
+    return {
+        "verdict": verdict,
+        "confidence": round(confidence, 2),
+        "headline": headline,
+        "signals": signals,
+        "source": source,
+        "originalRating": rating
+        }
 
-```
-return {
-    "verdict": verdict,
-    "confidence": round(confidence, 2),
-    "headline": headline,
-    "signals": signals,
-    "source": source,
-    "originalRating": rating
-}
-```
 
 # ---------------- NEWS CHECK ----------------
 
 @app.post("/api/news/check")
 def news_check(data: NewsInput):
 
-```
 text = data.text
 headline = ""
 
 if not text and data.url:
-
     if check_domain(data.url):
-
         return build_report(
             "SUSPICIOUS",
             85,
             ["Domain flagged as suspicious source"],
             headline=""
         )
-
     headline, article = scrape_article(data.url)
-
-    text = headline + " " + article
-
+text = headline + " " + article
 if not text:
     raise HTTPException(
         status_code=400,
@@ -422,6 +381,7 @@ return {
     "reasons": reasons
 }
 ```
+
 
 
 
