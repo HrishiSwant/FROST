@@ -52,11 +52,10 @@ try:
         vectorizer = pickle.load(f)
 
     logging.info("Fake news ML model loaded successfully")
-    
+
 except Exception as e:
     logging.error("Failed to load ML model")
     raise RuntimeError(f"ML model or vectorizer missing: {e}")
-    
 
 # ---------------- SCHEMAS ----------------
 
@@ -66,6 +65,10 @@ class NewsInput(BaseModel):
 
 class PhoneInput(BaseModel):
     phone: str
+
+class ThreatInput(BaseModel):
+    text: Optional[str] = None
+    phone: Optional[str] = None
 
 # ---------------- ROOT ----------------
 
@@ -79,7 +82,7 @@ def root():
             "Phone Scam Detection"
         ]
     }
-        
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -101,7 +104,6 @@ def preprocess(text):
     text = re.sub(r"[^a-zA-Z ]", "", text)
     text = re.sub(r"\s+", " ", text)
     return text.strip()
-
 
 # ---------------- FAKE NEWS SIGNALS ----------------
 
@@ -233,15 +235,17 @@ def news_check(data: NewsInput):
 
     if not text and data.url:
         if check_domain(data.url):
+            verdict = "SUSPICIOUS"
+            log_request("fake_news", verdict)
+
             return build_report(
-                "SUSPICIOUS",
+                verdict,
                 85,
                 ["Domain flagged as suspicious source"],
                 headline=""
             )
 
         headline, article = scrape_article(data.url)
-
         text = headline + " " + article
 
     if not text:
@@ -250,8 +254,6 @@ def news_check(data: NewsInput):
             detail="No news text provided"
         )
 
-    # -------- FACT CHECK DATABASE --------
-
     fact = google_fact_check(text)
 
     if fact:
@@ -259,15 +261,14 @@ def news_check(data: NewsInput):
 
         if "true" in rating and "mostly" not in rating:
             verdict = "REAL"
-
         elif "mostly true" in rating:
             verdict = "REAL"
-
         elif "half" in rating:
             verdict = "SUSPICIOUS"
-
         else:
             verdict = "FAKE"
+
+        log_request("fake_news", verdict)
 
         return build_report(
             verdict,
@@ -277,8 +278,6 @@ def news_check(data: NewsInput):
             fact["publisher"],
             fact["rating"]
         )
-
-    # -------- ML MODEL --------
 
     cleaned = preprocess(text)
 
@@ -294,20 +293,20 @@ def news_check(data: NewsInput):
 
     if total >= 60:
         verdict = "FAKE"
-
     elif total >= 30:
         verdict = "SUSPICIOUS"
-
     else:
         verdict = "UNKNOWN"
         signals.append("Low confidence classification")
-        log_request("fake_news", verdict)
-        return build_report(
-            verdict,
-            total,
-            signals,
-            headline
-            )
+
+    log_request("fake_news", verdict)
+
+    return build_report(
+        verdict,
+        total,
+        signals,
+        headline
+    )
 
 # ---------------- DEEPFAKE CHECK ----------------
 
@@ -322,6 +321,8 @@ async def deepfake_check(file: UploadFile = File(...)):
     image_bytes = await file.read()
 
     result = analyze_image(image_bytes)
+
+    log_request("deepfake", result["verdict"])
 
     return result
 
@@ -378,6 +379,8 @@ def phone_check(data: PhoneInput):
 
     verdict = "HIGH RISK" if fraud_score >= 60 else "SAFE"
 
+    log_request("phone", verdict)
+
     return {
         "phone": phone,
         "carrier": carrier_name,
@@ -387,20 +390,20 @@ def phone_check(data: PhoneInput):
         "reasons": reasons
     }
 
-class ThreatInput(BaseModel):
-    text: Optional[str] = None
-    phone: Optional[str] = None
+# ---------------- THREAT ANALYSIS ----------------
 
 @app.post("/api/threat/analyze")
 def frost_threat_analysis(data: ThreatInput):
     score = 0
     triggered = []
 
-    # Fake news analysis
     if data.text:
         cleaned = preprocess(data.text)
+
         vec = vectorizer.transform([cleaned])
+
         prediction = model.predict(vec)[0]
+
         prob = model.predict_proba(vec)[0].max() * 100
 
         if prediction == 1:
@@ -409,7 +412,6 @@ def frost_threat_analysis(data: ThreatInput):
             score += prob * 0.6
             triggered.append("Fake News")
 
-    # Phone risk
     if data.phone:
         try:
             phonenumbers.parse(data.phone)
@@ -432,4 +434,39 @@ def frost_threat_analysis(data: ThreatInput):
         "modulesTriggered": triggered
     }
 
+# ---------------- DASHBOARD ----------------
 
+@app.get("/api/dashboard")
+def frost_dashboard():
+    total_checks = (
+        analytics["fakeNewsChecks"]
+        + analytics["deepfakeChecks"]
+        + analytics["phoneChecks"]
+    )
+
+    threat_score = min(
+        (
+            analytics["fakeDetected"] * 5
+            + analytics["deepfakeDetected"] * 10
+            + analytics["scamPhonesDetected"] * 4
+        ),
+        100
+    )
+
+    return {
+        "system": "FROST Intelligence Dashboard",
+        "fakeNews": {
+            "checks": analytics["fakeNewsChecks"],
+            "fakeDetected": analytics["fakeDetected"]
+        },
+        "deepfake": {
+            "checks": analytics["deepfakeChecks"],
+            "deepfakesDetected": analytics["deepfakeDetected"]
+        },
+        "phoneScams": {
+            "checks": analytics["phoneChecks"],
+            "scamsDetected": analytics["scamPhonesDetected"]
+        },
+        "globalThreatScore": threat_score,
+        "totalAnalyses": total_checks
+    }
