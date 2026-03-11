@@ -5,6 +5,7 @@ import phonenumbers
 import re
 import logging
 from urllib.parse import urlparse
+from analytics import analytics, log_request
 
 from phonenumbers import carrier, geocoder
 from dotenv import load_dotenv
@@ -300,13 +301,13 @@ def news_check(data: NewsInput):
     else:
         verdict = "UNKNOWN"
         signals.append("Low confidence classification")
-
-    return build_report(
-        verdict,
-        total,
-        signals,
-        headline
-    )
+        log_request("fake_news", verdict)
+        return build_report(
+            verdict,
+            total,
+            signals,
+            headline
+            )
 
 # ---------------- DEEPFAKE CHECK ----------------
 
@@ -430,4 +431,5 @@ def frost_threat_analysis(data: ThreatInput):
         "riskLevel": risk,
         "modulesTriggered": triggered
     }
+
 
