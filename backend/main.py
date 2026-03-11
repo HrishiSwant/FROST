@@ -385,3 +385,49 @@ def phone_check(data: PhoneInput):
         "verdict": verdict,
         "reasons": reasons
     }
+
+class ThreatInput(BaseModel):
+    text: Optional[str] = None
+    phone: Optional[str] = None
+
+@app.post("/api/threat/analyze")
+def frost_threat_analysis(data: ThreatInput):
+    score = 0
+    triggered = []
+
+    # Fake news analysis
+    if data.text:
+        cleaned = preprocess(data.text)
+        vec = vectorizer.transform([cleaned])
+        prediction = model.predict(vec)[0]
+        prob = model.predict_proba(vec)[0].max() * 100
+
+        if prediction == 1:
+            score += prob * 0.3
+        else:
+            score += prob * 0.6
+            triggered.append("Fake News")
+
+    # Phone risk
+    if data.phone:
+        try:
+            phonenumbers.parse(data.phone)
+        except:
+            score += 40
+            triggered.append("Phone Scam")
+
+    threat_score = min(int(score), 100)
+
+    if threat_score >= 70:
+        risk = "HIGH"
+    elif threat_score >= 40:
+        risk = "MEDIUM"
+    else:
+        risk = "LOW"
+
+    return {
+        "threatScore": threat_score,
+        "riskLevel": risk,
+        "modulesTriggered": triggered
+    }
+
