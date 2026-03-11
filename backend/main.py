@@ -50,9 +50,12 @@ try:
     with open("vectorizer.pkl", "rb") as f:
         vectorizer = pickle.load(f)
 
-logging.info("Fake news ML model loaded successfully")
+    logging.info("Fake news ML model loaded successfully")
+    
 except Exception as e:
-raise RuntimeError(f"ML model or vectorizer missing: {e}")
+    logging.error("Failed to load ML model")
+    raise RuntimeError(f"ML model or vectorizer missing: {e}")
+    
 
 # ---------------- SCHEMAS ----------------
 
@@ -422,4 +425,5 @@ return {
     "reasons": reasons
 }
 ```
+
 
