@@ -44,16 +44,13 @@ allow_headers=["*"],
 # ---------------- LOAD ML MODEL ----------------
 
 try:
-with open("model.pkl", "rb") as f:
-model = pickle.load(f)
+    with open("model.pkl", "rb") as f:
+        model = pickle.load(f)
 
-```
-with open("vectorizer.pkl", "rb") as f:
-    vectorizer = pickle.load(f)
+    with open("vectorizer.pkl", "rb") as f:
+        vectorizer = pickle.load(f)
 
 logging.info("Fake news ML model loaded successfully")
-```
-
 except Exception as e:
 raise RuntimeError(f"ML model or vectorizer missing: {e}")
 
@@ -425,3 +422,4 @@ return {
     "reasons": reasons
 }
 ```
+
