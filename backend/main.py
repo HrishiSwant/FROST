@@ -18,7 +18,7 @@ from typing import Optional
 
 from deepfake_detector import analyze_image
 
-# 🔥 NEW IMPORTS (MongoDB + IP)
+# 🔥 MongoDB + IP
 from db import logs
 from utils import get_ip_info
 
@@ -153,8 +153,6 @@ def news_check(data: NewsInput, request: Request):
         "signals": reasons
     }
 
-    logging.info(f"[NEWS] IP:{ip} Verdict:{verdict}")
-
     logs.insert_one({
         "type": "news",
         "ip": ip,
@@ -191,21 +189,6 @@ def phone_check(data: PhoneInput, request: Request):
         carrier_name = "Unknown"
         location = "Unknown"
 
-    try:
-        if NUMVERIFY_KEY:
-            resp = requests.get(
-                "https://apilayer.net/api/validate",
-                params={"access_key": NUMVERIFY_KEY, "number": phone},
-                timeout=5
-            ).json()
-
-            if resp.get("line_type") == "voip":
-                score += 30
-                reasons.append("VOIP detected")
-
-    except:
-        pass
-
     if phone.endswith(("0000", "9999")):
         score += 15
         reasons.append("Suspicious pattern")
@@ -220,8 +203,6 @@ def phone_check(data: PhoneInput, request: Request):
         "verdict": verdict,
         "reasons": reasons
     }
-
-    logging.info(f"[PHONE] IP:{ip} Verdict:{verdict}")
 
     logs.insert_one({
         "type": "phone",
@@ -254,7 +235,34 @@ async def deepfake_check(file: UploadFile = File(...), request: Request = None):
 
     return result
 
-# ---------------- TEST ROUTE ----------------
+# ---------------- ADMIN DASHBOARD ----------------
+@app.get("/api/admin/stats")
+def get_stats():
+    total = logs.count_documents({})
+
+    phone = logs.count_documents({"type": "phone"})
+    news = logs.count_documents({"type": "news"})
+    deepfake = logs.count_documents({"type": "deepfake"})
+
+    high_risk = logs.count_documents({
+        "result.verdict": {"$in": ["HIGH RISK", "FAKE"]}
+    })
+
+    recent = list(logs.find().sort("_id", -1).limit(10))
+
+    for r in recent:
+        r["_id"] = str(r["_id"])
+
+    return {
+        "total": total,
+        "phone": phone,
+        "news": news,
+        "deepfake": deepfake,
+        "highRisk": high_risk,
+        "recent": recent
+    }
+
+# ---------------- TEST ----------------
 @app.get("/test-db")
 def test_db():
     logs.insert_one({"test": "working"})
