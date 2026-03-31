@@ -2,10 +2,6 @@
 import { useState } from "react";
 import { ShieldCheck, ArrowLeft } from "lucide-react";
 
-const API_BASE =
-  process.env.REACT_APP_API_URL ||
-  "https://frost-7sn1.onrender.com";
-
 export default function Fakenews({ goBack, API_BASE }) {
   const [text, setText] = useState("");
   const [result, setResult] = useState(null);
@@ -56,7 +52,7 @@ export default function Fakenews({ goBack, API_BASE }) {
             <ShieldCheck className="w-12 h-12 text-cyan-400" />
             <div>
               <h2 className="text-4xl font-semibold tracking-tight">Fake News Investigation</h2>
-              <p className="text-slate-400">Deep semantic analysis &amp; fact-checking</p>
+              <p className="text-slate-400">Deep semantic analysis & fact-checking</p>
             </div>
           </div>
 
@@ -75,11 +71,10 @@ export default function Fakenews({ goBack, API_BASE }) {
             {loading ? "Investigating Sources..." : "Investigate News"}
           </button>
 
-          {/* Results */}
           {result && (
             <div className="mt-10">
               {result.error ? (
-                <div className="bg-red-900/30 border border-red-400/30 p-6 rounded-2xl text-red-400">
+                <div className="bg-red-900/30 border border-red-400/30 p-6 rounded-2xl text-red-400 text-center">
                   {result.error}
                 </div>
               ) : (
@@ -103,19 +98,20 @@ export default function Fakenews({ goBack, API_BASE }) {
                         className={`h-full transition-all duration-1000 rounded-full
                           ${result.verdict === "REAL" ? "bg-emerald-400" : 
                             result.verdict === "FAKE" ? "bg-red-400" : "bg-yellow-400"}`}
-                        style={{ width: `${result.confidence}%` }}
+                        style={{ width: `${result.confidence || 50}%` }}
                       />
                     </div>
                   </div>
 
                   {result.headline && (
-                    <div className="text-sm text-slate-400">
-                      <span className="font-medium text-white">Headline:</span> {result.headline}
+                    <div className="text-sm bg-slate-900/50 p-5 rounded-2xl">
+                      <span className="font-medium text-white">Headline: </span>
+                      {result.headline}
                     </div>
                   )}
 
                   {result.signals && result.signals.length > 0 && (
-                    <div>
+                    <div className="mt-6">
                       <p className="font-medium text-yellow-400 mb-4">Investigation Signals:</p>
                       <div className="space-y-3">
                         {result.signals.map((signal, i) => (
