@@ -3,6 +3,7 @@ import { ShieldCheck, Phone, ScanFace, Sun, Moon, Zap } from "lucide-react";
 
 import Deepfake from "./pages/Deepfake";
 import Fakenews from "./pages/Fakenews";
+import AdminDashboard from "./pages/AdminDashboard"; // ✅ NEW
 
 const API_BASE =
   process.env.REACT_APP_API_URL ||
@@ -11,6 +12,13 @@ const API_BASE =
 function App() {
   const [currentView, setCurrentView] = useState("intro");
   const [theme, setTheme] = useState("dark");
+
+  // ✅ ENABLE #admin ROUTE (NO UI CHANGE)
+  useEffect(() => {
+    if (window.location.hash === "#admin") {
+      setCurrentView("admin");
+    }
+  }, []);
 
   useEffect(() => {
     if (theme === "dark") {
@@ -83,10 +91,10 @@ function App() {
       <div className={`min-h-screen transition-all duration-500
         ${theme === "dark" ? "bg-[#020617] text-white" : "bg-slate-50 text-slate-900"}`}>
 
-        {/* Navbar */}
         <nav className={`fixed top-0 left-0 right-0 z-50 glass border-b transition-all
           ${theme === "dark" ? "border-cyan-400/20" : "border-slate-200"}`}>
           <div className="max-w-7xl mx-auto px-6 py-5 flex justify-between items-center">
+
             <div className="flex items-center gap-3">
               <div className={`text-3xl font-bold tracking-tighter ${theme === "dark" ? "text-cyan-400" : "text-cyan-600"}`}>
                 FROST
@@ -103,11 +111,17 @@ function App() {
               >
                 {theme === "dark" ? <Sun size={22} /> : <Moon size={22} />}
               </button>
+
               <button
                 onClick={() => navigate("intro")}
                 className={`text-sm transition ${theme === "dark" ? "text-cyan-400 hover:text-white" : "text-slate-600 hover:text-slate-900"}`}
               >
                 ← Home
+              </button>
+
+              {/* ✅ HIDDEN ADMIN BUTTON */}
+              <button onClick={() => navigate("admin")} className="hidden">
+                Admin
               </button>
             </div>
           </div>
@@ -157,7 +171,11 @@ function App() {
     );
   }
 
-  // ==================== TOOL PAGES ====================
+  // ✅ ADMIN VIEW
+  if (currentView === "admin") {
+    return <AdminDashboard />;
+  }
+
   if (currentView === "phone") {
     return <PhoneView goBack={() => navigate("dashboard")} API_BASE={API_BASE} theme={theme} />;
   }
@@ -169,93 +187,6 @@ function App() {
   }
 
   return null;
-}
-
-// PhoneView with proper light/dark text colors
-function PhoneView({ goBack, API_BASE, theme }) {
-  const [phone, setPhone] = useState("");
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  const checkPhone = async () => {
-    if (!phone) return;
-    setLoading(true);
-    setResult(null);
-    try {
-      const res = await fetch(`${API_BASE}/api/phone/check`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone })
-      });
-      const data = await res.json();
-      setResult(data);
-    } catch {
-      setResult({ error: "Lookup failed" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className={`min-h-screen pt-20 pb-12 px-6 transition-all duration-500
-      ${theme === "dark" ? "bg-[#020617]" : "bg-slate-50"}`}>
-
-      <div className="max-w-xl mx-auto">
-        <button 
-          onClick={goBack} 
-          className={`flex items-center gap-2 mb-8 transition ${theme === "dark" ? "text-cyan-400 hover:text-white" : "text-cyan-600 hover:text-cyan-700"}`}
-        >
-          ← Back to Dashboard
-        </button>
-
-        <div className="glass rounded-3xl p-12">
-          <div className="flex items-center gap-4 mb-10">
-            <Phone className={`w-12 h-12 ${theme === "dark" ? "text-purple-400" : "text-purple-600"}`} />
-            <div>
-              <h2 className={`text-4xl font-semibold tracking-tight ${theme === "dark" ? "text-white" : "text-slate-900"}`}>
-                Caller Intelligence
-              </h2>
-              <p className={theme === "dark" ? "text-slate-400" : "text-slate-600"}>Global Scam Detection</p>
-            </div>
-          </div>
-
-          <input
-            placeholder="Enter phone number (e.g. +91 9876543210)"
-            className={`w-full border rounded-2xl px-6 py-5 text-lg focus:outline-none mb-8 transition-all
-              ${theme === "dark" 
-                ? "bg-slate-900 border-slate-700 focus:border-purple-400 text-white" 
-                : "bg-white border-slate-300 focus:border-purple-500 text-slate-900"}`}
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
-
-          <button
-            onClick={checkPhone}
-            disabled={loading}
-            className="w-full py-6 bg-gradient-to-r from-purple-600 to-cyan-500 rounded-2xl font-semibold text-xl text-black hover:brightness-110 transition disabled:opacity-70"
-          >
-            {loading ? "Scanning Networks..." : "Initiate Global Trace"}
-          </button>
-
-          {result && !result.error && (
-            <div className="mt-10 space-y-6">
-              {["carrier", "location", "fraudScore", "verdict"].map((key, i) => (
-                <div key={i} className={`p-6 rounded-2xl border transition-all
-                  ${theme === "dark" ? "bg-slate-900/70 border-slate-700" : "bg-white border-slate-200"}`}>
-                  <p className={`text-sm ${theme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
-                    {key === "fraudScore" ? "Fraud Risk" : key.charAt(0).toUpperCase() + key.slice(1)}
-                  </p>
-                  <p className={`text-2xl font-medium ${theme === "dark" ? "text-white" : "text-slate-900"}`}>
-                    {result[key] || "Unknown"}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
 }
 
 export default App;
