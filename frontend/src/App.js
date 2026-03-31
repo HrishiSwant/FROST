@@ -155,4 +155,78 @@ function PhoneView({ goBack, API_BASE }) {
   );
 }
 
+function PhoneView({ goBack, API_BASE, theme }) {
+  const [phone, setPhone] = useState("");
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const checkPhone = async () => {
+    if (!phone) return;
+    setLoading(true);
+    setResult(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/phone/check`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone })
+      });
+      const data = await res.json();
+      setResult(data);
+    } catch {
+      setResult({ error: "Lookup failed" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className={`min-h-screen pt-20 pb-12 px-6 transition-all duration-500
+      ${theme === "dark" ? "bg-[#020617]" : "bg-slate-50"}`}>
+
+      <div className="max-w-xl mx-auto">
+        <button 
+          onClick={goBack} 
+          className={`flex items-center gap-2 mb-8 transition ${theme === "dark" ? "text-cyan-400 hover:text-white" : "text-cyan-600 hover:text-cyan-700"}`}
+        >
+          ← Back to Dashboard
+        </button>
+
+        <div className="glass rounded-3xl p-12">
+          <div className="flex items-center gap-4 mb-10">
+            <p className={`text-4xl font-semibold tracking-tight ${theme === "dark" ? "text-white" : "text-slate-900"}`}>
+              Caller Intelligence
+            </p>
+          </div>
+
+          <input
+            placeholder="Enter phone number"
+            className={`w-full border rounded-2xl px-6 py-5 text-lg focus:outline-none mb-8
+              ${theme === "dark" 
+                ? "bg-slate-900 border-slate-700 text-white" 
+                : "bg-white border-slate-300 text-slate-900"}`}
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
+
+          <button
+            onClick={checkPhone}
+            disabled={loading}
+            className="w-full py-6 bg-gradient-to-r from-purple-600 to-cyan-500 rounded-2xl font-semibold text-xl text-black"
+          >
+            {loading ? "Scanning..." : "Check"}
+          </button>
+
+          {result && !result.error && (
+            <div className="mt-10 space-y-4">
+              <pre className="text-sm">
+                {JSON.stringify(result, null, 2)}
+              </pre>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default App;
