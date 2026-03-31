@@ -3,7 +3,7 @@ import { ShieldCheck, Phone, ScanFace, Sun, Moon, Zap } from "lucide-react";
 
 import Deepfake from "./pages/Deepfake";
 import Fakenews from "./pages/Fakenews";
-import AdminDashboard from "./pages/AdminDashboard"; // ✅ NEW
+import AdminDashboard from "./pages/AdminDashboard";
 
 const API_BASE =
   process.env.REACT_APP_API_URL ||
@@ -13,7 +13,6 @@ function App() {
   const [currentView, setCurrentView] = useState("intro");
   const [theme, setTheme] = useState("dark");
 
-  // ✅ ENABLE #admin ROUTE (NO UI CHANGE)
   useEffect(() => {
     if (window.location.hash === "#admin") {
       setCurrentView("admin");
@@ -78,7 +77,6 @@ function App() {
             className="group relative px-12 py-6 bg-gradient-to-r from-cyan-500 to-purple-600 text-black font-semibold text-2xl rounded-3xl overflow-hidden hover:scale-105 transition-all duration-300 shadow-xl"
           >
             ENTER COMMAND CENTER
-            <div className="absolute inset-0 bg-white/30 translate-y-full group-hover:translate-y-0 transition-all duration-300" />
           </button>
         </div>
       </div>
@@ -91,102 +89,70 @@ function App() {
       <div className={`min-h-screen transition-all duration-500
         ${theme === "dark" ? "bg-[#020617] text-white" : "bg-slate-50 text-slate-900"}`}>
 
-        <nav className={`fixed top-0 left-0 right-0 z-50 glass border-b transition-all
-          ${theme === "dark" ? "border-cyan-400/20" : "border-slate-200"}`}>
+        <nav className="fixed top-0 left-0 right-0 z-50 glass border-b">
           <div className="max-w-7xl mx-auto px-6 py-5 flex justify-between items-center">
 
-            <div className="flex items-center gap-3">
-              <div className={`text-3xl font-bold tracking-tighter ${theme === "dark" ? "text-cyan-400" : "text-cyan-600"}`}>
-                FROST
-              </div>
-              <div className={`text-[10px] uppercase tracking-[3px] ${theme === "dark" ? "text-cyan-400/70" : "text-slate-500"}`}>
-                CYBER INTELLIGENCE
-              </div>
-            </div>
+            <div className="text-3xl font-bold">FROST</div>
 
-            <div className="flex items-center gap-6">
-              <button
-                onClick={toggleTheme}
-                className="p-3 rounded-2xl hover:bg-white/10 dark:hover:bg-white/10 hover:bg-slate-200 transition"
-              >
-                {theme === "dark" ? <Sun size={22} /> : <Moon size={22} />}
+            <div className="flex gap-4">
+              <button onClick={toggleTheme}>
+                {theme === "dark" ? <Sun /> : <Moon />}
               </button>
-
-              <button
-                onClick={() => navigate("intro")}
-                className={`text-sm transition ${theme === "dark" ? "text-cyan-400 hover:text-white" : "text-slate-600 hover:text-slate-900"}`}
-              >
-                ← Home
-              </button>
-
-              {/* ✅ HIDDEN ADMIN BUTTON */}
-              <button onClick={() => navigate("admin")} className="hidden">
-                Admin
-              </button>
+              <button onClick={() => navigate("intro")}>← Home</button>
             </div>
           </div>
         </nav>
 
-        <div className="pt-28 pb-20 px-6 max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className={`text-5xl font-bold tracking-tight mb-3 ${theme === "dark" ? "text-white" : "text-slate-900"}`}>
-              Security Command Center
-            </h2>
-            <p className={`text-lg ${theme === "dark" ? "text-slate-400" : "text-slate-600"}`}>
-              Select your intelligence tool
-            </p>
+        <div className="pt-28 px-6 max-w-7xl mx-auto grid md:grid-cols-3 gap-8">
+          <div onClick={() => navigate("fake-news")} className="glass p-10 cursor-pointer">
+            <ShieldCheck /> Fake News
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              { id: "fake-news", icon: ShieldCheck, title: "Fake News Detection", desc: "Analyze articles & URLs with deep semantic intelligence", color: "cyan" },
-              { id: "phone", icon: Phone, title: "Caller Intelligence", desc: "Real-time scam & fraud risk assessment", color: "purple" },
-              { id: "deepfake", icon: ScanFace, title: "Deepfake Detection", desc: "Upload images for instant authenticity verification", color: "emerald" }
-            ].map((tool) => (
-              <div
-                key={tool.id}
-                onClick={() => navigate(tool.id)}
-                className={`glass rounded-3xl p-10 cursor-pointer hover:scale-[1.03] transition-all duration-300 group border
-                  ${theme === "dark" 
-                    ? `hover:border-${tool.color}-400/50` 
-                    : `hover:border-${tool.color}-600/50`}`}
-              >
-                <tool.icon className={`w-16 h-16 mb-8 group-hover:scale-110 transition 
-                  ${theme === "dark" ? `text-${tool.color}-400` : `text-${tool.color}-600`}`} />
-                <h3 className={`text-3xl font-semibold mb-3 ${theme === "dark" ? "text-white" : "text-slate-900"}`}>
-                  {tool.title}
-                </h3>
-                <p className={`mb-10 ${theme === "dark" ? "text-slate-400" : "text-slate-600"}`}>
-                  {tool.desc}
-                </p>
-                <div className={`text-sm tracking-widest group-hover:underline transition 
-                  ${theme === "dark" ? `text-${tool.color}-400` : `text-${tool.color}-600`}`}>
-                  LAUNCH TOOL →
-                </div>
-              </div>
-            ))}
+          <div onClick={() => navigate("phone")} className="glass p-10 cursor-pointer">
+            <Phone /> Phone Check
+          </div>
+
+          <div onClick={() => navigate("deepfake")} className="glass p-10 cursor-pointer">
+            <ScanFace /> Deepfake
           </div>
         </div>
       </div>
     );
   }
 
-  // ✅ ADMIN VIEW
-  if (currentView === "admin") {
-    return <AdminDashboard />;
-  }
-
-  if (currentView === "phone") {
-    return <PhoneView goBack={() => navigate("dashboard")} API_BASE={API_BASE} theme={theme} />;
-  }
-  if (currentView === "deepfake") {
-    return <Deepfake goBack={() => navigate("dashboard")} API_BASE={API_BASE} theme={theme} />;
-  }
-  if (currentView === "fake-news") {
-    return <Fakenews goBack={() => navigate("dashboard")} API_BASE={API_BASE} theme={theme} />;
-  }
+  if (currentView === "admin") return <AdminDashboard />;
+  if (currentView === "phone") return <PhoneView goBack={() => navigate("dashboard")} API_BASE={API_BASE} />;
+  if (currentView === "deepfake") return <Deepfake goBack={() => navigate("dashboard")} API_BASE={API_BASE} />;
+  if (currentView === "fake-news") return <Fakenews goBack={() => navigate("dashboard")} API_BASE={API_BASE} />;
 
   return null;
+}
+
+// ✅ FIXED MISSING COMPONENT
+function PhoneView({ goBack, API_BASE }) {
+  const [phone, setPhone] = useState("");
+  const [result, setResult] = useState(null);
+
+  const check = async () => {
+    const res = await fetch(`${API_BASE}/api/phone/check`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ phone })
+    });
+    setResult(await res.json());
+  };
+
+  return (
+    <div className="p-10">
+      <button onClick={goBack}>← Back</button>
+
+      <input value={phone} onChange={(e)=>setPhone(e.target.value)} />
+
+      <button onClick={check}>Check</button>
+
+      {result && <pre>{JSON.stringify(result,null,2)}</pre>}
+    </div>
+  );
 }
 
 export default App;
