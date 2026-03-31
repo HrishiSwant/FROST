@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { ShieldCheck, ArrowLeft } from "lucide-react";
 
-export default function Fakenews({ goBack, API_BASE }) {
+export default function Fakenews({ goBack, API_BASE, theme }) {
   const [text, setText] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -38,27 +38,37 @@ export default function Fakenews({ goBack, API_BASE }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#020617] pt-20 pb-12 px-6">
+    <div className={`min-h-screen pt-20 pb-12 px-6 transition-all duration-500
+      ${theme === "dark" ? "bg-[#020617]" : "bg-slate-50"}`}>
+
       <div className="max-w-2xl mx-auto">
         <button 
           onClick={goBack} 
-          className="flex items-center gap-2 text-cyan-400 mb-8 hover:text-white transition"
+          className={`flex items-center gap-2 mb-8 transition
+            ${theme === "dark" ? "text-cyan-400 hover:text-white" : "text-cyan-600 hover:text-cyan-700"}`}
         >
           <ArrowLeft size={20} /> Back to Dashboard
         </button>
 
         <div className="glass rounded-3xl p-12">
           <div className="flex items-center gap-4 mb-10">
-            <ShieldCheck className="w-12 h-12 text-cyan-400" />
+            <ShieldCheck className={`w-12 h-12 ${theme === "dark" ? "text-cyan-400" : "text-cyan-600"}`} />
             <div>
-              <h2 className="text-4xl font-semibold tracking-tight">Fake News Investigation</h2>
-              <p className="text-slate-400">Deep semantic analysis & fact-checking</p>
+              <h2 className={`text-4xl font-semibold tracking-tight ${theme === "dark" ? "text-white" : "text-slate-900"}`}>
+                Fake News Investigation
+              </h2>
+              <p className={theme === "dark" ? "text-slate-400" : "text-slate-600"}>
+                Deep semantic analysis & fact-checking
+              </p>
             </div>
           </div>
 
           <textarea
             placeholder="Paste news text or article URL here..."
-            className="w-full h-56 bg-slate-900 border border-slate-700 rounded-3xl px-7 py-6 text-lg resize-y focus:outline-none focus:border-cyan-400 mb-8"
+            className={`w-full h-56 border rounded-3xl px-7 py-6 text-lg resize-y focus:outline-none mb-8 transition-all
+              ${theme === "dark" 
+                ? "bg-slate-900 border-slate-700 focus:border-cyan-400 text-white" 
+                : "bg-white border-slate-300 focus:border-cyan-600 text-slate-900"}`}
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
@@ -66,7 +76,7 @@ export default function Fakenews({ goBack, API_BASE }) {
           <button
             onClick={checkNews}
             disabled={!text || loading}
-            className="w-full py-6 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-2xl font-semibold text-xl hover:brightness-110 transition disabled:opacity-70"
+            className="w-full py-6 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-2xl font-semibold text-xl text-black hover:brightness-110 transition disabled:opacity-70"
           >
             {loading ? "Investigating Sources..." : "Investigate News"}
           </button>
@@ -88,10 +98,12 @@ export default function Fakenews({ goBack, API_BASE }) {
                     </div>
                   </div>
 
-                  <div className="bg-slate-900/70 p-8 rounded-2xl border border-slate-700">
+                  <div className={`p-8 rounded-2xl border ${theme === "dark" ? "bg-slate-900/70 border-slate-700" : "bg-white border-slate-200"}`}>
                     <div className="flex justify-between text-lg">
-                      <span className="text-slate-400">Confidence</span>
-                      <span className="font-semibold">{result.confidence}%</span>
+                      <span className={theme === "dark" ? "text-slate-400" : "text-slate-500"}>Confidence</span>
+                      <span className={`font-semibold ${theme === "dark" ? "text-white" : "text-slate-900"}`}>
+                        {result.confidence}%
+                      </span>
                     </div>
                     <div className="h-2.5 bg-slate-800 rounded-full mt-4 overflow-hidden">
                       <div 
@@ -104,18 +116,21 @@ export default function Fakenews({ goBack, API_BASE }) {
                   </div>
 
                   {result.headline && (
-                    <div className="text-sm bg-slate-900/50 p-5 rounded-2xl">
-                      <span className="font-medium text-white">Headline: </span>
+                    <div className={`text-sm p-5 rounded-2xl ${theme === "dark" ? "bg-slate-900/50" : "bg-white border border-slate-200"}`}>
+                      <span className={`font-medium ${theme === "dark" ? "text-white" : "text-slate-900"}`}>Headline: </span>
                       {result.headline}
                     </div>
                   )}
 
                   {result.signals && result.signals.length > 0 && (
-                    <div className="mt-6">
-                      <p className="font-medium text-yellow-400 mb-4">Investigation Signals:</p>
+                    <div>
+                      <p className={`font-medium mb-4 ${theme === "dark" ? "text-yellow-400" : "text-amber-600"}`}>
+                        Investigation Signals:
+                      </p>
                       <div className="space-y-3">
                         {result.signals.map((signal, i) => (
-                          <div key={i} className="flex gap-3 text-sm bg-slate-900/50 p-4 rounded-2xl border-l-4 border-yellow-400">
+                          <div key={i} className={`flex gap-3 text-sm p-4 rounded-2xl border-l-4 border-yellow-400
+                            ${theme === "dark" ? "bg-slate-900/50" : "bg-white border border-slate-200"}`}>
                             • {signal}
                           </div>
                         ))}
