@@ -1,11 +1,13 @@
 // src/App.js
 import { useState, useEffect } from "react";
-import { ShieldCheck, Phone, ScanFace, Sun, Moon, Zap, ArrowLeft } from "lucide-react";
+import { ShieldCheck, Phone, ScanFace, Sun, Moon, Zap } from "lucide-react";
 
 import Deepfake from "./pages/Deepfake";
 import Fakenews from "./pages/Fakenews";
 
-const API_BASE = process.env.REACT_APP_API_URL || "https://frost-7sn1.onrender.com";
+const API_BASE =
+  process.env.REACT_APP_API_URL ||
+  "https://frost-7sn1.onrender.com";
 
 function App() {
   const [currentView, setCurrentView] = useState("intro");
@@ -27,7 +29,7 @@ function App() {
       <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#020617]">
         {/* Animated Background Grid */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#22d3ee10_1px,transparent_1px),linear-gradient(to_bottom,#22d3ee10_1px,transparent_1px)] bg-[size:50px_50px]" />
-        
+
         <div className="relative z-10 text-center px-6 max-w-4xl">
           <div className="flex justify-center mb-8">
             <div className="relative">
@@ -50,7 +52,7 @@ function App() {
 
           <button
             onClick={() => navigate("dashboard")}
-            className="group relative px-12 py-6 bg-gradient-to-r from-cyan-500 to-purple-600 text-black font-semibold text-2xl rounded-3xl overflow-hidden hover:scale-105 transition-all duration-300 neon-cyan"
+            className="group relative px-12 py-6 bg-gradient-to-r from-cyan-500 to-purple-600 text-black font-semibold text-2xl rounded-3xl overflow-hidden hover:scale-105 transition-all duration-300 neon-cyan shadow-2xl"
           >
             ENTER COMMAND CENTER
             <div className="absolute inset-0 bg-white/30 translate-y-full group-hover:translate-y-0 transition-all duration-300" />
@@ -105,7 +107,7 @@ function App() {
             >
               <ShieldCheck className="w-16 h-16 text-cyan-400 mb-8 group-hover:scale-110 transition" />
               <h3 className="text-3xl font-semibold mb-3">Fake News Detection</h3>
-              <p className="text-slate-400">Analyze articles &amp; URLs with deep semantic intelligence</p>
+              <p className="text-slate-400">Analyze articles & URLs with deep semantic intelligence</p>
               <div className="mt-10 text-cyan-400 text-sm tracking-widest group-hover:text-white">LAUNCH TOOL →</div>
             </div>
 
@@ -116,7 +118,7 @@ function App() {
             >
               <Phone className="w-16 h-16 text-purple-400 mb-8 group-hover:scale-110 transition" />
               <h3 className="text-3xl font-semibold mb-3">Caller Intelligence</h3>
-              <p className="text-slate-400">Real-time scam &amp; fraud risk assessment</p>
+              <p className="text-slate-400">Real-time scam & fraud risk assessment</p>
               <div className="mt-10 text-purple-400 text-sm tracking-widest group-hover:text-white">LAUNCH TOOL →</div>
             </div>
 
@@ -159,8 +161,10 @@ function PhoneView({ goBack, API_BASE }) {
   const [loading, setLoading] = useState(false);
 
   const checkPhone = async () => {
+    if (!phone) return;
     setLoading(true);
     setResult(null);
+
     try {
       const res = await fetch(`${API_BASE}/api/phone/check`, {
         method: "POST",
@@ -179,7 +183,10 @@ function PhoneView({ goBack, API_BASE }) {
   return (
     <div className="min-h-screen bg-[#020617] pt-20 pb-12 px-6">
       <div className="max-w-xl mx-auto">
-        <button onClick={goBack} className="flex items-center gap-2 text-cyan-400 mb-8 hover:text-white">
+        <button 
+          onClick={goBack} 
+          className="flex items-center gap-2 text-cyan-400 mb-8 hover:text-white transition"
+        >
           ← Back to Dashboard
         </button>
 
@@ -221,13 +228,17 @@ function PhoneView({ goBack, API_BASE }) {
                 <p className="text-sm text-slate-400">Fraud Risk</p>
                 <p className="text-4xl font-bold text-orange-400">{result.fraudScore || 0}%</p>
               </div>
-              <div className="text-center">
-                <p className="text-2xl font-semibold text-emerald-400">{result.verdict}</p>
+              <div className="text-center pt-4">
+                <p className={`text-3xl font-bold ${result.verdict?.includes("FRAUD") ? "text-red-400" : "text-emerald-400"}`}>
+                  {result.verdict || "VERDICT"}
+                </p>
               </div>
             </div>
           )}
 
-          {result?.error && <p className="mt-6 text-red-400 text-center">{result.error}</p>}
+          {result?.error && (
+            <p className="mt-6 text-red-400 text-center text-lg">{result.error}</p>
+          )}
         </div>
       </div>
     </div>
