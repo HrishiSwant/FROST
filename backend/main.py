@@ -11,7 +11,7 @@ from phonenumbers import carrier, geocoder
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
@@ -20,9 +20,7 @@ from deepfake_detector import analyze_image
 
 # ---------------- ENV ----------------
 load_dotenv()
-
 NUMVERIFY_KEY = os.getenv("NUMVERIFY_KEY")
-FACTCHECK_API_KEY = os.getenv("FACTCHECK_API_KEY")
 
 # ---------------- LOGGING ----------------
 logging.basicConfig(level=logging.INFO)
@@ -32,22 +30,17 @@ app = FastAPI(title="FROST Cyber Security API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],           # Change to your Vercel URL in production for security
-    allow_credentials=True,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # ---------------- LOAD ML MODEL ----------------
-try:
-    with open("model.pkl", "rb") as f:
-        model = pickle.load(f)
-    with open("vectorizer.pkl", "rb") as f:
-        vectorizer = pickle.load(f)
-    logging.info("✅ Fake news ML model loaded successfully")
-except Exception as e:
-    logging.error(f"Failed to load ML model: {e}")
-    raise RuntimeError("model.pkl or vectorizer.pkl is missing!")
+with open("model.pkl", "rb") as f:
+    model = pickle.load(f)
+
+with open("vectorizer.pkl", "rb") as f:
+    vectorizer = pickle.load(f)
 
 # ---------------- SCHEMAS ----------------
 class NewsInput(BaseModel):
@@ -57,134 +50,105 @@ class NewsInput(BaseModel):
 class PhoneInput(BaseModel):
     phone: str
 
-# ---------------- ROOT & HEALTH ----------------
+# ---------------- ROOT ----------------
 @app.get("/")
 def root():
-    return {
-        "message": "FROST Cyber Security API is running",
-        "status": "active"
-    }
+    return {"status": "FROST backend running"}
 
-@app.get("/health")
-def health():
-    return {"status": "ok"}
+# ---------------- SECURITY ----------------
+def validate_text(text):
+    if not text or len(text) < 5:
+        raise HTTPException(status_code=400, detail="Invalid text input")
+    if len(text) > 1000:
+        raise HTTPException(status_code=400, detail="Text too long")
 
-# ---------------- HELPER FUNCTIONS ----------------
-def preprocess(text: str):
+def validate_phone(phone):
+    if not re.match(r'^\+?[0-9]{10,15}$', phone):
+        raise HTTPException(status_code=400, detail="Invalid phone number")
+
+# ---------------- HELPERS ----------------
+def preprocess(text):
     text = text.lower()
     text = re.sub(r"http\S+", "", text)
     text = re.sub(r"[^a-zA-Z ]", "", text)
-    text = re.sub(r"\s+", " ", text)
     return text.strip()
 
-def fake_news_signals(text: str):
+def fake_signals(text):
     score = 0
-    signals = []
+    reasons = []
 
-    keywords = ["breaking", "shocking", "unbelievable", "you wont believe", "viral", "secret", "exposed"]
+    keywords = ["breaking", "shocking", "viral", "exposed"]
 
     for k in keywords:
         if k in text:
-            score += 5
-            signals.append(f"Clickbait keyword: {k}")
+            score += 10
+            reasons.append(f"Clickbait keyword: {k}")
 
-    if text.count("!") > 3:
+    if text.count("!") > 2:
         score += 10
-        signals.append("Excessive exclamation marks")
+        reasons.append("Excessive punctuation")
 
-    if text.isupper():
-        score += 20
-        signals.append("All caps headline")
+    return score, reasons
 
-    return score, signals
-
-def scrape_article(url: str):
+def scrape(url):
     try:
-        headers = {"User-Agent": "Mozilla/5.0 (compatible; FROSTBot/1.0)"}
-        res = requests.get(url, headers=headers, timeout=10)
+        res = requests.get(url, timeout=5)
         soup = BeautifulSoup(res.text, "html.parser")
 
-        headline = soup.title.get_text().strip() if soup.title else ""
-        paragraphs = [p.get_text() for p in soup.find_all("p")]
-        text = " ".join(paragraphs)
+        title = soup.title.get_text() if soup.title else ""
+        text = " ".join([p.get_text() for p in soup.find_all("p")])
 
-        return headline, text[:10000]
-    except Exception as e:
-        logging.error(f"Scraping failed for {url}: {e}")
+        return title, text[:5000]
+    except:
         return "", ""
 
-def check_domain(url: str):
+def suspicious_domain(url):
+    bad = ["clickbait", "fake", "viral", "rumor"]
     domain = urlparse(url).netloc.lower()
-    suspicious = ["clickbait", "viralnews", "fakeupdate", "rumor", "gossip"]
-    return any(s in domain for s in suspicious)
+    return any(x in domain for x in bad)
 
-# ---------------- NEWS CHECK ----------------
+# ---------------- NEWS ----------------
 @app.post("/api/news/check")
-def news_check(data: NewsInput):
+def news_check(data: NewsInput, request: Request):
+    ip = request.client.host
+
+    if data.url and suspicious_domain(data.url):
+        return {"verdict": "SUSPICIOUS", "confidence": 85}
+
     text = data.text
-    headline = ""
 
     if not text and data.url:
-        if check_domain(data.url):
-            verdict = "SUSPICIOUS"
-            log_request("fake_news", verdict)
-            return {
-                "verdict": verdict,
-                "confidence": 85,
-                "headline": "",
-                "signals": ["Domain flagged as suspicious source"],
-                "source": None,
-                "originalRating": None
-            }
+        title, article = scrape(data.url)
+        text = title + " " + article
 
-        headline, article = scrape_article(data.url)
-        text = (headline + " " + article).strip()
+    validate_text(text)
 
-    if not text:
-        raise HTTPException(status_code=400, detail="No news text or URL provided")
+    clean = preprocess(text)
+    vec = vectorizer.transform([clean])
 
-    # ML Prediction
-    cleaned = preprocess(text)
-    vec = vectorizer.transform([cleaned])
-    probability = model.predict_proba(vec)[0].max() * 100
-    signal_score, signals = fake_news_signals(cleaned)
+    prob = model.predict_proba(vec)[0].max() * 100
+    extra_score, reasons = fake_signals(clean)
 
-    total = min(probability + signal_score, 100)
+    final = min(prob + extra_score, 100)
 
-    if total >= 65:
-        verdict = "FAKE"
-    elif total >= 35:
-        verdict = "SUSPICIOUS"
-    else:
-        verdict = "REAL"
+    verdict = "FAKE" if final > 65 else "REAL"
 
-    log_request("fake_news", verdict)
+    logging.info(f"[NEWS] IP:{ip} Verdict:{verdict}")
 
     return {
         "verdict": verdict,
-        "confidence": round(total, 1),
-        "headline": headline,
-        "signals": signals,
-        "source": None,
-        "originalRating": None
+        "confidence": round(final, 2),
+        "signals": reasons
     }
 
-# ---------------- DEEPFAKE CHECK ----------------
-@app.post("/api/deepfake/check")
-async def deepfake_check(file: UploadFile = File(...)):
-    if not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Image file required")
-
-    image_bytes = await file.read()
-    result = analyze_image(image_bytes)
-
-    log_request("deepfake", result.get("verdict", "UNKNOWN"))
-    return result
-
-# ---------------- PHONE CHECK ----------------
+# ---------------- PHONE ----------------
 @app.post("/api/phone/check")
-def phone_check(data: PhoneInput):
+def phone_check(data: PhoneInput, request: Request):
+    ip = request.client.host
     phone = data.phone.strip()
+
+    validate_phone(phone)
+
     score = 0
     reasons = []
 
@@ -192,38 +156,40 @@ def phone_check(data: PhoneInput):
         parsed = phonenumbers.parse(phone)
         carrier_name = carrier.name_for_number(parsed, "en") or "Unknown"
         location = geocoder.description_for_number(parsed, "en") or "Unknown"
+
+        if not phonenumbers.is_valid_number(parsed):
+            score += 40
+            reasons.append("Invalid number")
+
     except:
+        score += 30
         carrier_name = "Unknown"
         location = "Unknown"
-        score += 25
-        reasons.append("Invalid number format")
 
-    # NumVerify (optional)
+    # External API
     try:
         if NUMVERIFY_KEY:
             resp = requests.get(
                 "https://apilayer.net/api/validate",
                 params={"access_key": NUMVERIFY_KEY, "number": phone},
-                timeout=8
+                timeout=5
             ).json()
 
-            if not resp.get("valid"):
-                score += 40
-                reasons.append("Invalid number")
             if resp.get("line_type") == "voip":
-                score += 35
-                reasons.append("VOIP number detected")
+                score += 30
+                reasons.append("VOIP detected")
+
     except:
         pass
 
-    if re.search(r"0000|1111|9999$", phone):
+    if phone.endswith(("0000", "9999")):
         score += 15
         reasons.append("Suspicious pattern")
 
     fraud_score = min(score, 100)
-    verdict = "HIGH RISK" if fraud_score >= 60 else "SAFE"
+    verdict = "HIGH RISK" if fraud_score > 50 else "SAFE"
 
-    log_request("phone", verdict)
+    logging.info(f"[PHONE] IP:{ip} Verdict:{verdict}")
 
     return {
         "carrier": carrier_name,
@@ -233,35 +199,13 @@ def phone_check(data: PhoneInput):
         "reasons": reasons
     }
 
-# ---------------- DASHBOARD ----------------
-@app.get("/api/dashboard")
-def frost_dashboard():
-    total = (
-        analytics["fakeNewsChecks"] +
-        analytics["deepfakeChecks"] +
-        analytics["phoneChecks"]
-    )
+# ---------------- DEEPFAKE ----------------
+@app.post("/api/deepfake/check")
+async def deepfake_check(file: UploadFile = File(...), request: Request = None):
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Upload image only")
 
-    threat = min(
-        analytics["fakeDetected"] * 5 +
-        analytics["deepfakeDetected"] * 10 +
-        analytics["scamPhonesDetected"] * 4,
-        100
-    )
+    image = await file.read()
+    result = analyze_image(image)
 
-    return {
-        "fakeNews": {
-            "checks": analytics["fakeNewsChecks"],
-            "fakeDetected": analytics["fakeDetected"]
-        },
-        "deepfake": {
-            "checks": analytics["deepfakeChecks"],
-            "deepfakesDetected": analytics["deepfakeDetected"]
-        },
-        "phoneScams": {
-            "checks": analytics["phoneChecks"],
-            "scamsDetected": analytics["scamPhonesDetected"]
-        },
-        "globalThreatScore": threat,
-        "totalAnalyses": total
-    }
+    return result
