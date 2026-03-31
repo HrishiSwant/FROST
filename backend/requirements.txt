@@ -12,5 +12,5 @@ python-multipart
 opencv-python-headless
 joblib
 httpx
-
+pymongo
 
