@@ -18,6 +18,10 @@ from typing import Optional
 
 from deepfake_detector import analyze_image
 
+# 🔥 NEW IMPORTS (MongoDB + IP)
+from db import logs
+from utils import get_ip_info
+
 # ---------------- ENV ----------------
 load_dotenv()
 NUMVERIFY_KEY = os.getenv("NUMVERIFY_KEY")
@@ -111,9 +115,20 @@ def suspicious_domain(url):
 @app.post("/api/news/check")
 def news_check(data: NewsInput, request: Request):
     ip = request.client.host
+    geo = get_ip_info(ip)
 
     if data.url and suspicious_domain(data.url):
-        return {"verdict": "SUSPICIOUS", "confidence": 85}
+        result = {"verdict": "SUSPICIOUS", "confidence": 85}
+
+        logs.insert_one({
+            "type": "news",
+            "ip": ip,
+            "geo": geo,
+            "input": data.url,
+            "result": result
+        })
+
+        return result
 
     text = data.text
 
@@ -130,23 +145,33 @@ def news_check(data: NewsInput, request: Request):
     extra_score, reasons = fake_signals(clean)
 
     final = min(prob + extra_score, 100)
-
     verdict = "FAKE" if final > 65 else "REAL"
 
-    logging.info(f"[NEWS] IP:{ip} Verdict:{verdict}")
-
-    return {
+    result = {
         "verdict": verdict,
         "confidence": round(final, 2),
         "signals": reasons
     }
 
+    logging.info(f"[NEWS] IP:{ip} Verdict:{verdict}")
+
+    logs.insert_one({
+        "type": "news",
+        "ip": ip,
+        "geo": geo,
+        "input": text[:200],
+        "result": result
+    })
+
+    return result
+
 # ---------------- PHONE ----------------
 @app.post("/api/phone/check")
 def phone_check(data: PhoneInput, request: Request):
     ip = request.client.host
-    phone = data.phone.strip()
+    geo = get_ip_info(ip)
 
+    phone = data.phone.strip()
     validate_phone(phone)
 
     score = 0
@@ -166,7 +191,6 @@ def phone_check(data: PhoneInput, request: Request):
         carrier_name = "Unknown"
         location = "Unknown"
 
-    # External API
     try:
         if NUMVERIFY_KEY:
             resp = requests.get(
@@ -189,9 +213,7 @@ def phone_check(data: PhoneInput, request: Request):
     fraud_score = min(score, 100)
     verdict = "HIGH RISK" if fraud_score > 50 else "SAFE"
 
-    logging.info(f"[PHONE] IP:{ip} Verdict:{verdict}")
-
-    return {
+    result = {
         "carrier": carrier_name,
         "location": location,
         "fraudScore": fraud_score,
@@ -199,13 +221,41 @@ def phone_check(data: PhoneInput, request: Request):
         "reasons": reasons
     }
 
+    logging.info(f"[PHONE] IP:{ip} Verdict:{verdict}")
+
+    logs.insert_one({
+        "type": "phone",
+        "ip": ip,
+        "geo": geo,
+        "phone": phone,
+        "result": result
+    })
+
+    return result
+
 # ---------------- DEEPFAKE ----------------
 @app.post("/api/deepfake/check")
 async def deepfake_check(file: UploadFile = File(...), request: Request = None):
+    ip = request.client.host if request else "unknown"
+    geo = get_ip_info(ip)
+
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Upload image only")
 
     image = await file.read()
     result = analyze_image(image)
 
+    logs.insert_one({
+        "type": "deepfake",
+        "ip": ip,
+        "geo": geo,
+        "result": result
+    })
+
     return result
+
+# ---------------- TEST ROUTE ----------------
+@app.get("/test-db")
+def test_db():
+    logs.insert_one({"test": "working"})
+    return {"msg": "inserted"}
