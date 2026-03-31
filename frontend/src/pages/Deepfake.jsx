@@ -2,10 +2,6 @@
 import { useState } from "react";
 import { ScanFace, Upload, ArrowLeft } from "lucide-react";
 
-const API_BASE =
-  process.env.REACT_APP_API_URL ||
-  "https://frost-7sn1.onrender.com";
-
 export default function Deepfake({ goBack, API_BASE }) {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -69,7 +65,7 @@ export default function Deepfake({ goBack, API_BASE }) {
 
           {/* Upload Area */}
           <div 
-            className="border-2 border-dashed border-slate-700 hover:border-emerald-400/50 rounded-3xl p-12 text-center transition-all duration-300 mb-8"
+            className="border-2 border-dashed border-slate-700 hover:border-emerald-400/50 rounded-3xl p-12 text-center transition-all duration-300 mb-8 cursor-pointer"
             onClick={() => document.getElementById('file-input').click()}
           >
             <Upload className="w-16 h-16 mx-auto mb-6 text-slate-400" />
@@ -88,11 +84,11 @@ export default function Deepfake({ goBack, API_BASE }) {
           {preview && (
             <div className="mb-8">
               <p className="text-sm text-slate-400 mb-3">Selected Image</p>
-              <div className="relative rounded-2xl overflow-hidden border border-slate-700">
+              <div className="relative rounded-2xl overflow-hidden border border-slate-700 bg-black">
                 <img 
                   src={preview} 
                   alt="preview" 
-                  className="w-full max-h-96 object-contain bg-black" 
+                  className="w-full max-h-96 object-contain" 
                 />
               </div>
             </div>
@@ -110,28 +106,28 @@ export default function Deepfake({ goBack, API_BASE }) {
           {result && (
             <div className="mt-10">
               {result.error ? (
-                <div className="bg-red-900/30 border border-red-400/30 p-6 rounded-2xl text-red-400">
+                <div className="bg-red-900/30 border border-red-400/30 p-6 rounded-2xl text-red-400 text-center">
                   {result.error}
                 </div>
               ) : (
                 <div className="space-y-8">
                   <div className="text-center">
                     <div className={`inline-block px-8 py-3 rounded-3xl text-3xl font-bold tracking-wider
-                      ${result.verdict === "REAL" ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"}`}>
-                      {result.verdict}
+                      ${result.verdict === "REAL" || result.verdict === "AUTHENTIC" ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"}`}>
+                      {result.verdict || "UNKNOWN"}
                     </div>
                   </div>
 
                   <div className="bg-slate-900/70 p-8 rounded-2xl border border-slate-700">
                     <div className="flex justify-between items-center mb-6">
-                      <span className="text-slate-400">Confidence</span>
+                      <span className="text-slate-400">Confidence Level</span>
                       <span className="text-4xl font-semibold text-white">{result.confidence}%</span>
                     </div>
                     <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
                       <div 
                         className={`h-full rounded-full transition-all duration-1000
-                          ${result.verdict === "REAL" ? "bg-emerald-400" : "bg-red-400"}`}
-                        style={{ width: `${result.confidence}%` }}
+                          ${result.verdict === "REAL" || result.verdict === "AUTHENTIC" ? "bg-emerald-400" : "bg-red-400"}`}
+                        style={{ width: `${result.confidence || 0}%` }}
                       />
                     </div>
                   </div>
