@@ -147,7 +147,7 @@ def calculate_trust_score(deepfake=None, news=None, phone=None):
 # ---------- NEWS ----------
 @app.post("/api/news/check")
 @limiter.limit("10/minute")
-async def news_check(data: NewsInput):
+async def news_check(request: Request, data: NewsInput):
     try:
         if not data.text and not data.url:
             return error("Provide text or URL")
@@ -179,7 +179,6 @@ async def news_check(data: NewsInput):
         probs = model.predict_proba(vec)[0]
         confidence = max(probs) * 100
 
-        # confidence smoothing
         if confidence < 60:
             confidence += 10
         elif confidence > 90:
@@ -203,7 +202,7 @@ async def news_check(data: NewsInput):
 # ---------- PHONE ----------
 @app.post("/api/phone/check")
 @limiter.limit("15/minute")
-def phone_check(data: PhoneInput):
+def phone_check(request: Request, data: PhoneInput):
     try:
         phone = data.phone.strip()
 
@@ -250,7 +249,7 @@ def phone_check(data: PhoneInput):
 # ---------- DEEPFAKE ----------
 @app.post("/api/deepfake/check")
 @limiter.limit("5/minute")
-async def deepfake_check(file: UploadFile = File(...)):
+async def deepfake_check(request: Request, file: UploadFile = File(...)):
     try:
         if not file.content_type.startswith("image/"):
             return error("Upload image only")
@@ -276,6 +275,7 @@ async def deepfake_check(file: UploadFile = File(...)):
 @app.post("/api/analyze-all")
 @limiter.limit("5/minute")
 async def analyze_all(
+    request: Request,
     text: Optional[str] = None,
     phone: Optional[str] = None,
     file: UploadFile = File(None)
