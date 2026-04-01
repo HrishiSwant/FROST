@@ -4,6 +4,7 @@ import { ShieldCheck, Phone, ScanFace, Sun, Moon, Zap, Info, ArrowLeft } from "l
 
 import Deepfake from "./pages/Deepfake";
 import Fakenews from "./pages/Fakenews";
+import ProjectInfo from "./pages/ProjectInfo";   // ← This was missing
 
 const API_BASE = process.env.REACT_APP_API_URL || "https://frost-7sn1.onrender.com";
 
@@ -117,7 +118,7 @@ function App() {
     );
   }
 
-  // Tool Pages
+  // ==================== TOOL PAGES ====================
   if (currentView === "phone") return <PhoneView goBack={() => navigate("dashboard")} API_BASE={API_BASE} theme={theme} />;
   if (currentView === "deepfake") return <Deepfake goBack={() => navigate("dashboard")} API_BASE={API_BASE} theme={theme} />;
   if (currentView === "fake-news") return <Fakenews goBack={() => navigate("dashboard")} API_BASE={API_BASE} theme={theme} />;
