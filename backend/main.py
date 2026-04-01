@@ -1,4 +1,5 @@
 # ================= IMPORTS =================
+
 import os
 import pickle
 import requests
@@ -24,286 +25,314 @@ from slowapi.util import get_remote_address
 
 from deepfake_detector import analyze_image
 
-# ✅ NEW: GEMINI
+# ✅ GEMINI
+
 import google.generativeai as genai
 
 # ---------------- ENV ----------------
+
 load_dotenv()
 
 # ✅ INIT GEMINI
+
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 model_ai = genai.GenerativeModel("gemini-pro")
 
 # ---------------- LOGGING ----------------
+
 logging.basicConfig(level=logging.INFO)
 
 # ---------------- APP ----------------
+
 app = FastAPI(title="FROST Cyber Security API")
 
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+CORSMiddleware,
+allow_origins=["*"],
+allow_methods=["*"],
+allow_headers=["*"],
 )
 
 # ---------------- RATE LIMIT ----------------
+
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 
 # ---------------- ASYNC EXECUTOR ----------------
+
 executor = ThreadPoolExecutor()
 
 # ---------------- LOAD ML ----------------
+
 with open("model.pkl", "rb") as f:
-    model = pickle.load(f)
+model = pickle.load(f)
 
 with open("vectorizer.pkl", "rb") as f:
-    vectorizer = pickle.load(f)
+vectorizer = pickle.load(f)
 
 # ---------------- RESPONSE FORMAT ----------------
+
 def success(data):
-    return {"success": True, "data": data}
+return {"success": True, "data": data}
 
 def error(msg):
-    return {"success": False, "error": msg}
+return {"success": False, "error": msg}
 
 # ---------------- SCHEMAS ----------------
+
 class NewsInput(BaseModel):
-    text: Optional[str] = None
-    url: Optional[str] = None
+text: Optional[str] = None
+url: Optional[str] = None
 
 class PhoneInput(BaseModel):
-    phone: str
+phone: str
 
 # ---------------- ROOT ----------------
+
 @app.get("/")
 def root():
-    return {"status": "FROST backend running"}
+return {"status": "FROST backend running"}
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+return {"status": "ok"}
 
 # ---------------- HELPERS ----------------
+
 def preprocess(text):
-    text = text.lower()
-    text = re.sub(r"http\S+", "", text)
-    text = re.sub(r"[^a-zA-Z ]", " ", text)
-    text = re.sub(r"\s+", " ", text)
-    return text.strip()
+text = text.lower()
+text = re.sub(r"http\S+", "", text)
+text = re.sub(r"[^a-zA-Z ]", " ", text)
+text = re.sub(r"\s+", " ", text)
+return text.strip()
 
 def fake_signals(text):
-    score = 0
-    reasons = []
+score = 0
+reasons = []
 
-    keywords = ["breaking", "shocking", "viral", "exposed"]
+```
+keywords = ["breaking", "shocking", "viral", "exposed"]
 
-    for k in keywords:
-        if k in text:
-            score += 10
-            reasons.append(f"Clickbait keyword: {k}")
-
-    if text.count("!") > 2:
+for k in keywords:
+    if k in text:
         score += 10
-        reasons.append("Excessive punctuation")
+        reasons.append(f"Clickbait keyword: {k}")
 
-    return score, reasons
+if text.count("!") > 2:
+    score += 10
+    reasons.append("Excessive punctuation")
+
+return score, reasons
+```
 
 def scrape(url):
-    try:
-        res = requests.get(url, timeout=5)
-        soup = BeautifulSoup(res.text, "html.parser")
+try:
+res = requests.get(url, timeout=5)
+soup = BeautifulSoup(res.text, "html.parser")
 
-        title = soup.title.get_text() if soup.title else ""
-        text = " ".join([p.get_text() for p in soup.find_all("p")])
+```
+    title = soup.title.get_text() if soup.title else ""
+    text = " ".join([p.get_text() for p in soup.find_all("p")])
 
-        return title, text[:3000]
-    except Exception as e:
-        logging.error(f"Scrape error: {e}")
-        return "", ""
+    return title, text[:3000]
+except Exception as e:
+    logging.error(f"Scrape error: {e}")
+    return "", ""
+```
 
 def suspicious_domain(url):
-    bad = ["clickbait", "fake", "viral", "rumor"]
-    domain = urlparse(url).netloc.lower()
-    return any(x in domain for x in bad)
+bad = ["clickbait", "fake", "viral", "rumor"]
+domain = urlparse(url).netloc.lower()
+return any(x in domain for x in bad)
 
 # ================= NEWS API =================
+
 @app.post("/api/news/check")
 @limiter.limit("10/minute")
 async def news_check(request: Request, data: NewsInput):
+try:
+if not data.text and not data.url:
+return error("Provide text or URL")
+
+```
+    loop = asyncio.get_event_loop()
+    text = data.text
+
+    # ---------------- URL HANDLING ----------------
+    if not text and data.url:
+        if suspicious_domain(data.url):
+            return success({
+                "answer": "This source appears suspicious.\n\nThe domain is commonly associated with misleading content."
+            })
+
+        title, article = await loop.run_in_executor(executor, scrape, data.url)
+        text = f"{title} {article}"
+
+    if not text:
+        return error("No content")
+
+    # ================= 🔥 FROST AI (GEMINI PRIMARY) =================
     try:
-        if not data.text and not data.url:
-            return error("Provide text or URL")
+        response = model_ai.generate_content(
+            f"""
+            You are FROST AI (Fake Resistance & Online Security Tech assistant).
 
-        loop = asyncio.get_event_loop()
-        text = data.text
+            Analyze the following news and:
+            1. Verdict: REAL or FAKE
+            2. Explain why
+            3. Give confidence score (0-100%)
 
-        # ---------------- URL HANDLING ----------------
-        if not text and data.url:
-            if suspicious_domain(data.url):
-                return success({
-                    "answer": "This source appears suspicious.\n\nThe domain is commonly associated with misleading content."
-                })
+            News:
+            {text}
+            """
+        )
 
-            title, article = await loop.run_in_executor(executor, scrape, data.url)
-            text = f"{title} {article}"
+        return success({
+            "answer": response.text
+        })
 
-        if not text:
-            return error("No content")
+    except Exception as ai_error:
+        logging.error(f"Gemini failed, using ML fallback: {ai_error}")
 
-        # ================= 🔥 AI ROUTING =================
-        if len(text.split()) <= 10:
-            try:
-                response = model_ai.generate_content(
-                    f"""
-                    Fact-check this statement and respond clearly and naturally.
-                    Keep it short and helpful.
+    # ================= ML FALLBACK (UNCHANGED) =================
+    clean = preprocess(text)
 
-                    Statement:
-                    {text}
-                    """
-                )
+    vec = await loop.run_in_executor(executor, vectorizer.transform, [clean])
+    probs = model.predict_proba(vec)[0]
 
-                return success({
-                    "answer": response.text
-                })
+    confidence = max(probs) * 100
+    extra, reasons = fake_signals(clean)
+    final = min(confidence + extra, 100)
 
-            except Exception as e:
-                logging.error(f"Gemini error: {e}")
-                return error("AI service unavailable")
+    verdict = "FAKE" if probs[0] > probs[1] else "REAL"
 
-        # ================= ML MODEL =================
-        clean = preprocess(text)
+    if verdict == "FAKE":
+        answer = (
+            "This content appears misleading.\n\n"
+            "It shows patterns often found in sensational or unverified news."
+        )
+    else:
+        answer = (
+            "This content appears reliable.\n\n"
+            "The language and structure align with credible reporting."
+        )
 
-        vec = await loop.run_in_executor(executor, vectorizer.transform, [clean])
-        probs = model.predict_proba(vec)[0]
+    if reasons:
+        answer += "\n\nKey observations:\n"
+        for r in reasons:
+            answer += f"• {r}\n"
 
-        confidence = max(probs) * 100
-        extra, reasons = fake_signals(clean)
-        final = min(confidence + extra, 100)
+    answer += f"\nConfidence: {round(final, 2)}%"
 
-        verdict = "FAKE" if probs[0] > probs[1] else "REAL"
+    return success({"answer": answer})
 
-        if verdict == "FAKE":
-            answer = (
-                "This content appears misleading.\n\n"
-                "It shows patterns often found in sensational or unverified news."
-            )
-        else:
-            answer = (
-                "This content appears reliable.\n\n"
-                "The language and structure align with credible reporting."
-            )
-
-        if reasons:
-            answer += "\n\nKey observations:\n"
-            for r in reasons:
-                answer += f"• {r}\n"
-
-        answer += f"\nConfidence: {round(final, 2)}%"
-
-        return success({"answer": answer})
-
-    except Exception as e:
-        logging.error(f"News error: {e}")
-        return error("Internal error")
+except Exception as e:
+    logging.error(f"News error: {e}")
+    return error("Internal error")
+```
 
 # ================= PHONE API =================
+
 @app.post("/api/phone/check")
 @limiter.limit("15/minute")
 def phone_check(request: Request, data: PhoneInput):
+try:
+phone = data.phone.strip()
+
+```
+    if not re.match(r"^\+?[0-9]{10,15}$", phone):
+        return error("Invalid phone number")
+
+    reasons = []
+    score = 0
+
     try:
-        phone = data.phone.strip()
+        parsed = phonenumbers.parse(phone)
 
-        if not re.match(r"^\+?[0-9]{10,15}$", phone):
-            return error("Invalid phone number")
+        carrier_name = carrier.name_for_number(parsed, "en") or "Unknown"
+        location = geocoder.description_for_number(parsed, "en") or "Unknown"
 
-        reasons = []
-        score = 0
+        if not phonenumbers.is_valid_number(parsed):
+            score += 40
+            reasons.append("Invalid number")
 
-        try:
-            parsed = phonenumbers.parse(phone)
+    except:
+        carrier_name = "Unknown"
+        location = "Unknown"
+        score += 30
+        reasons.append("Parsing failed")
 
-            carrier_name = carrier.name_for_number(parsed, "en") or "Unknown"
-            location = geocoder.description_for_number(parsed, "en") or "Unknown"
+    if phone.endswith(("0000", "9999", "1234")):
+        score += 20
+        reasons.append("Suspicious pattern")
 
-            if not phonenumbers.is_valid_number(parsed):
-                score += 40
-                reasons.append("Invalid number")
+    fraud_score = min(score, 100)
 
-        except:
-            carrier_name = "Unknown"
-            location = "Unknown"
-            score += 30
-            reasons.append("Parsing failed")
+    answer = (
+        "This phone number appears risky.\n\n"
+        if fraud_score > 60
+        else "This phone number appears safe.\n\n"
+    )
 
-        if phone.endswith(("0000", "9999", "1234")):
-            score += 20
-            reasons.append("Suspicious pattern")
+    answer += f"Carrier: {carrier_name}\nLocation: {location}\n"
 
-        fraud_score = min(score, 100)
+    if reasons:
+        answer += "\nObservations:\n"
+        for r in reasons:
+            answer += f"• {r}\n"
 
-        answer = (
-            "This phone number appears risky.\n\n"
-            if fraud_score > 60
-            else "This phone number appears safe.\n\n"
-        )
+    answer += f"\nRisk Score: {fraud_score}%"
 
-        answer += f"Carrier: {carrier_name}\nLocation: {location}\n"
+    return success({"answer": answer})
 
-        if reasons:
-            answer += "\nObservations:\n"
-            for r in reasons:
-                answer += f"• {r}\n"
-
-        answer += f"\nRisk Score: {fraud_score}%"
-
-        return success({"answer": answer})
-
-    except Exception as e:
-        logging.error(f"Phone error: {e}")
-        return error("Internal error")
+except Exception as e:
+    logging.error(f"Phone error: {e}")
+    return error("Internal error")
+```
 
 # ================= DEEPFAKE API =================
+
 @app.post("/api/deepfake/check")
 @limiter.limit("5/minute")
 async def deepfake_check(request: Request, file: UploadFile = File(...)):
-    try:
-        if not file.content_type.startswith("image/"):
-            return error("Upload image only")
+try:
+if not file.content_type.startswith("image/"):
+return error("Upload image only")
 
-        image_bytes = await file.read()
+```
+    image_bytes = await file.read()
 
-        if not image_bytes:
-            return error("Empty file")
+    if not image_bytes:
+        return error("Empty file")
 
-        loop = asyncio.get_event_loop()
+    loop = asyncio.get_event_loop()
 
-        result = await loop.run_in_executor(
-            executor, analyze_image, image_bytes
-        )
+    result = await loop.run_in_executor(
+        executor, analyze_image, image_bytes
+    )
 
-        if result["verdict"] == "FAKE":
-            answer = "This image appears manipulated or AI-generated."
-        elif result["verdict"] == "REAL":
-            answer = "This image appears authentic."
-        else:
-            answer = "Unable to confidently analyze this image."
+    if result["verdict"] == "FAKE":
+        answer = "This image appears manipulated or AI-generated."
+    elif result["verdict"] == "REAL":
+        answer = "This image appears authentic."
+    else:
+        answer = "Unable to confidently analyze this image."
 
-        answer += f"\n\nConfidence: {result.get('confidence', 0)}%"
+    answer += f"\n\nConfidence: {result.get('confidence', 0)}%"
 
-        return success({"answer": answer})
+    return success({"answer": answer})
 
-    except Exception as e:
-        logging.error(f"Deepfake error: {e}")
-        return error("Internal error")
+except Exception as e:
+    logging.error(f"Deepfake error: {e}")
+    return error("Internal error")
+```
 
 # ================= GLOBAL ERROR =================
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logging.error(f"Unhandled error: {exc}")
-    return JSONResponse(
-        status_code=500,
-        content=error("Something went wrong"),
-    )
+logging.error(f"Unhandled error: {exc}")
+return JSONResponse(
+status_code=500,
+content=error("Something went wrong"),
+)
