@@ -43,52 +43,17 @@ function App() {
   if (currentView === "intro") {
     return (
       <div
-        className={`min-h-screen flex items-center justify-center relative overflow-hidden transition-all duration-500 ${
+        className={`min-h-screen flex items-center justify-center ${
           theme === "dark" ? "bg-[#020617]" : "bg-slate-50"
         }`}
       >
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#22d3ee10_1px,transparent_1px),linear-gradient(to_bottom,#22d3ee10_1px,transparent_1px)] bg-[size:50px_50px] opacity-30" />
-
-        <div className="relative z-10 text-center px-6 max-w-4xl">
-          <div className="flex justify-center mb-8">
-            <div
-              className={`w-24 h-24 rounded-full flex items-center justify-center border transition-all duration-300 ${
-                theme === "dark"
-                  ? "bg-cyan-500/10 border-cyan-400/30"
-                  : "bg-cyan-600/10 border-cyan-500/30"
-              } animate-pulse`}
-            >
-              <Zap
-                className={`w-14 h-14 ${
-                  theme === "dark" ? "text-cyan-400" : "text-cyan-600"
-                }`}
-              />
-            </div>
-          </div>
-
-          <h1
-            className={`text-7xl md:text-8xl font-bold tracking-tighter mb-4 ${
-              theme === "dark"
-                ? "bg-gradient-to-r from-cyan-300 via-white to-purple-300 bg-clip-text text-transparent"
-                : "text-slate-900"
-            }`}
-          >
-            FROST
-          </h1>
-
-          <p
-            className={`text-4xl md:text-5xl mb-6 ${
-              theme === "dark" ? "text-slate-300" : "text-slate-700"
-            }`}
-          >
-            Defending Reality
-          </p>
-
+        <div className="text-center">
+          <h1 className="text-7xl font-bold mb-6">FROST</h1>
           <button
             onClick={() => navigate("dashboard")}
-            className="px-12 py-6 bg-gradient-to-r from-cyan-500 to-purple-600 text-black font-semibold text-2xl rounded-3xl hover:scale-105 transition-all"
+            className="px-12 py-6 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-3xl hover:scale-105 transition-all duration-200"
           >
-            ENTER COMMAND CENTER
+            ENTER
           </button>
         </div>
       </div>
@@ -105,37 +70,35 @@ function App() {
             : "bg-slate-50 text-slate-900"
         }`}
       >
-        <nav className="fixed top-0 left-0 right-0 z-50 glass border-b">
-          <div className="max-w-7xl mx-auto px-6 py-5 flex justify-between">
-            <div className="text-3xl font-bold">FROST</div>
+        <nav className="p-6 flex justify-between">
+          <div className="text-2xl font-bold">FROST</div>
 
-            <div className="flex gap-4">
-              <button onClick={toggleTheme}>
-                {theme === "dark" ? <Sun /> : <Moon />}
-              </button>
-              <button onClick={() => navigate("intro")}>← Home</button>
-            </div>
+          <div className="flex gap-4">
+            <button onClick={toggleTheme}>
+              {theme === "dark" ? <Sun /> : <Moon />}
+            </button>
+            <button onClick={() => navigate("intro")}>← Home</button>
           </div>
         </nav>
 
-        <div className="pt-28 px-6 max-w-7xl mx-auto grid md:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-3 gap-6 p-10">
           <div
             onClick={() => navigate("fake-news")}
-            className="glass p-10 cursor-pointer"
+            className="p-10 glass cursor-pointer hover:scale-105 transition-all duration-200"
           >
             <ShieldCheck /> Fake News
           </div>
 
           <div
             onClick={() => navigate("phone")}
-            className="glass p-10 cursor-pointer"
+            className="p-10 glass cursor-pointer hover:scale-105 transition-all duration-200"
           >
             <Phone /> Phone Check
           </div>
 
           <div
             onClick={() => navigate("deepfake")}
-            className="glass p-10 cursor-pointer"
+            className="p-10 glass cursor-pointer hover:scale-105 transition-all duration-200"
           >
             <ScanFace /> Deepfake
           </div>
@@ -207,13 +170,12 @@ function PhoneView({ goBack, API_BASE, theme }) {
   };
 
   return (
-    <div
-      className={`min-h-screen pt-20 px-6 ${
-        theme === "dark" ? "bg-[#020617]" : "bg-slate-50"
-      }`}
-    >
+    <div className={`min-h-screen pt-20 px-6`}>
       <div className="max-w-xl mx-auto">
-        <button onClick={goBack} className="mb-6">
+        <button
+          onClick={goBack}
+          className="mb-6 hover:scale-105 transition-all duration-200"
+        >
           ← Back
         </button>
 
@@ -229,19 +191,37 @@ function PhoneView({ goBack, API_BASE, theme }) {
 
           <button
             onClick={checkPhone}
-            className="w-full py-4 bg-gradient-to-r from-purple-600 to-cyan-500 rounded-xl"
+            className="w-full py-4 bg-gradient-to-r from-purple-600 to-cyan-500 rounded-xl hover:scale-105 transition-all duration-200"
           >
             {loading ? "Checking..." : "Check"}
           </button>
 
+          {/* LOADING */}
+          {loading && (
+            <p className="text-center mt-4 text-purple-400">
+              Checking number...
+            </p>
+          )}
+
+          {/* RESULT */}
           {result && !result.error && (
             <div className="mt-6 p-6 bg-white/5 rounded-xl">
               <p>📍 {result.location}</p>
               <p>📡 {result.carrier}</p>
+
               <p className="text-red-400 mt-3">
                 Risk: {result.fraudScore}%
               </p>
+
               <p>{result.verdict}</p>
+
+              {/* TRUST SCORE READY */}
+              {result.trust && (
+                <div className="mt-4">
+                  <p className="font-bold">Trust Score</p>
+                  <p>{result.trust.score}/100</p>
+                </div>
+              )}
             </div>
           )}
         </div>
