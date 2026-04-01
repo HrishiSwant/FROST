@@ -117,7 +117,6 @@ def scrape(url):
     try:
         res = requests.get(url, timeout=5)
         soup = BeautifulSoup(res.text, "html.parser")
-
         title = soup.title.get_text() if soup.title else ""
         text = " ".join([p.get_text() for p in soup.find_all("p")])
         return title, text[:3000]
@@ -175,30 +174,30 @@ async def news_check(request: Request, data: NewsInput):
         except Exception as ai_error:
             logging.error(f"Gemini failed, using ML fallback: {ai_error}")
 
-        # ================= ML FALLBACK (UNCHANGED) =================
-       try:
-    response = model_ai.generate_content(
-        f"""
-        You are FROST AI, a smart and conversational assistant.
+        # ================= ML FALLBACK =================
+        try:
+            response = model_ai.generate_content(
+                f"""
+                You are FROST AI, a smart and conversational assistant.
+                Talk naturally like ChatGPT.
+                If the statement is factual, confirm it clearly.
+                If it's false or misleading, explain politely.
+                Keep answers simple and human-like.
+                User input:
+                {text}
+                """
+            )
+            return success({
+                "answer": response.text
+            })
+        except Exception as ai_error:
+            logging.error(f"Gemini failed: {ai_error}")
+            return error("AI service temporarily unavailable")
 
-        Talk naturally like ChatGPT.
+    except Exception as e:
+        logging.error(f"News error: {e}")
+        return error("Internal error")
 
-        If the statement is factual, confirm it clearly.
-        If it's false or misleading, explain politely.
-        Keep answers simple and human-like.
-
-        User input:
-        {text}
-        """
-    )
-
-    return success({
-        "answer": response.text
-    })
-
-except Exception as ai_error:
-    logging.error(f"Gemini failed: {ai_error}")
-    return error("AI service temporarily unavailable")
 
 # ================= PHONE API =================
 @app.post("/api/phone/check")
