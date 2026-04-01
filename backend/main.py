@@ -1,3 +1,4 @@
+# ================= IMPORTS =================
 import os
 import pickle
 import requests
@@ -6,25 +7,20 @@ import re
 import logging
 from urllib.parse import urlparse
 
-from analytics import analytics, log_request
 from phonenumbers import carrier, geocoder
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Request
+from fastapi import FastAPI, UploadFile, File, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 
 from deepfake_detector import analyze_image
 
-# 🔥 MongoDB + IP
-from db import logs
-from utils import get_ip_info
-
 # ---------------- ENV ----------------
 load_dotenv()
-NUMVERIFY_KEY = os.getenv("NUMVERIFY_KEY")
 
 # ---------------- LOGGING ----------------
 logging.basicConfig(level=logging.INFO)
@@ -39,41 +35,36 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ---------------- LOAD ML MODEL ----------------
+# ---------------- LOAD ML ----------------
 with open("model.pkl", "rb") as f:
     model = pickle.load(f)
 
 with open("vectorizer.pkl", "rb") as f:
     vectorizer = pickle.load(f)
 
+# ---------------- RESPONSE FORMAT ----------------
+def success(data):
+    return {"success": True, "data": data}
+
+def error(msg):
+    return {"success": False, "error": msg}
+
 # ---------------- SCHEMAS ----------------
 class NewsInput(BaseModel):
     text: Optional[str] = None
     url: Optional[str] = None
 
-
 class PhoneInput(BaseModel):
     phone: str
-
 
 # ---------------- ROOT ----------------
 @app.get("/")
 def root():
     return {"status": "FROST backend running"}
 
-
-# ---------------- VALIDATION ----------------
-def validate_text(text):
-    if not text or len(text) < 5:
-        raise HTTPException(status_code=400, detail="Invalid text input")
-    if len(text) > 1000:
-        raise HTTPException(status_code=400, detail="Text too long")
-
-
-def validate_phone(phone):
-    if not re.match(r"^\+?[0-9]{10,15}$", phone):
-        raise HTTPException(status_code=400, detail="Invalid phone number")
-
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 # ---------------- HELPERS ----------------
 def preprocess(text):
@@ -81,7 +72,6 @@ def preprocess(text):
     text = re.sub(r"http\S+", "", text)
     text = re.sub(r"[^a-zA-Z ]", "", text)
     return text.strip()
-
 
 def fake_signals(text):
     score = 0
@@ -100,7 +90,6 @@ def fake_signals(text):
 
     return score, reasons
 
-
 def scrape(url):
     try:
         res = requests.get(url, timeout=5)
@@ -109,16 +98,15 @@ def scrape(url):
         title = soup.title.get_text() if soup.title else ""
         text = " ".join([p.get_text() for p in soup.find_all("p")])
 
-        return title, text[:5000]
-    except:
+        return title, text[:3000]
+    except Exception as e:
+        logging.error(f"Scrape error: {e}")
         return "", ""
-
 
 def suspicious_domain(url):
     bad = ["clickbait", "fake", "viral", "rumor"]
     domain = urlparse(url).netloc.lower()
     return any(x in domain for x in bad)
-
 
 # ---------------- TRUST SCORE ----------------
 def calculate_trust_score(deepfake=None, news=None, phone=None):
@@ -137,154 +125,174 @@ def calculate_trust_score(deepfake=None, news=None, phone=None):
         score -= 30
         reasons.append("Suspicious phone number")
 
-    if score > 70:
-        risk = "LOW"
-    elif score > 40:
-        risk = "MEDIUM"
-    else:
-        risk = "HIGH"
+    risk = "LOW" if score > 70 else "MEDIUM" if score > 40 else "HIGH"
 
-    return {
-        "score": score,
-        "risk": risk,
-        "reasons": reasons
-    }
+    return {"score": score, "risk": risk, "reasons": reasons}
 
+# ================= APIs =================
 
-# ---------------- NEWS ----------------
+# ---------- NEWS ----------
 @app.post("/api/news/check")
-def news_check(data: NewsInput, request: Request):
-    ip = request.client.host
-    geo = get_ip_info(ip)
+def news_check(data: NewsInput):
+    try:
+        if not data.text and not data.url:
+            return error("Provide text or URL")
 
-    if data.url and suspicious_domain(data.url):
-        result = {"verdict": "SUSPICIOUS", "confidence": 85}
-        return result
+        text = data.text
 
-    text = data.text
+        if not text and data.url:
+            if suspicious_domain(data.url):
+                return success({
+                    "verdict": "SUSPICIOUS",
+                    "confidence": 85
+                })
 
-    if not text and data.url:
-        title, article = scrape(data.url)
-        text = title + " " + article
+            title, article = scrape(data.url)
+            text = f"{title} {article}"
 
-    validate_text(text)
+        if not text or len(text) < 10:
+            return error("Content too short")
 
-    clean = preprocess(text)
-    vec = vectorizer.transform([clean])
+        clean = preprocess(text)
+        vec = vectorizer.transform([clean])
 
-    prob = model.predict_proba(vec)[0].max() * 100
-    extra_score, reasons = fake_signals(clean)
+        prob = model.predict_proba(vec)[0].max() * 100
+        extra, reasons = fake_signals(clean)
 
-    final = min(prob + extra_score, 100)
-    verdict = "FAKE" if final > 65 else "REAL"
+        final = min(prob + extra, 100)
+        verdict = "FAKE" if final > 65 else "REAL"
 
-    return {
-        "verdict": verdict,
-        "confidence": round(final, 2),
-        "signals": reasons
-    }
+        return success({
+            "verdict": verdict,
+            "confidence": round(final, 2),
+            "signals": reasons
+        })
 
+    except Exception as e:
+        logging.error(f"News error: {e}")
+        return error("Internal error")
 
-# ---------------- PHONE ----------------
+# ---------- PHONE ----------
 @app.post("/api/phone/check")
 def phone_check(data: PhoneInput):
-    phone = data.phone.strip()
-    validate_phone(phone)
-
-    score = 0
-    reasons = []
-
     try:
-        parsed = phonenumbers.parse(phone)
-        carrier_name = carrier.name_for_number(parsed, "en") or "Unknown"
-        location = geocoder.description_for_number(parsed, "en") or "Unknown"
+        phone = data.phone.strip()
 
-        if not phonenumbers.is_valid_number(parsed):
-            score += 40
-            reasons.append("Invalid number")
+        if not re.match(r"^\+?[0-9]{10,15}$", phone):
+            return error("Invalid phone number")
 
-    except:
-        score += 30
-        carrier_name = "Unknown"
-        location = "Unknown"
+        score = 0
+        reasons = []
 
-    if phone.endswith(("0000", "9999")):
-        score += 15
-        reasons.append("Suspicious pattern")
+        try:
+            parsed = phonenumbers.parse(phone)
 
-    fraud_score = min(score, 100)
+            carrier_name = carrier.name_for_number(parsed, "en") or "Unknown"
+            location = geocoder.description_for_number(parsed, "en") or "Unknown"
 
-    return {
-        "carrier": carrier_name,
-        "location": location,
-        "fraudScore": fraud_score,
-        "verdict": "HIGH RISK" if fraud_score > 50 else "SAFE",
-        "reasons": reasons
-    }
+            if not phonenumbers.is_valid_number(parsed):
+                score += 40
+                reasons.append("Invalid number")
 
+        except:
+            carrier_name = "Unknown"
+            location = "Unknown"
+            score += 30
+            reasons.append("Parsing failed")
 
-# ---------------- DEEPFAKE ----------------
+        if phone.endswith(("0000", "9999")):
+            score += 15
+            reasons.append("Suspicious pattern")
+
+        fraud_score = min(score, 100)
+
+        return success({
+            "carrier": carrier_name,
+            "location": location,
+            "fraudScore": fraud_score,
+            "verdict": "HIGH RISK" if fraud_score > 50 else "SAFE",
+            "reasons": reasons
+        })
+
+    except Exception as e:
+        logging.error(f"Phone error: {e}")
+        return error("Internal error")
+
+# ---------- DEEPFAKE ----------
 @app.post("/api/deepfake/check")
 async def deepfake_check(file: UploadFile = File(...)):
-    if not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Upload image only")
+    try:
+        if not file.content_type.startswith("image/"):
+            return error("Upload image only")
 
-    image = await file.read()
-    return analyze_image(image)
+        image = await file.read()
 
+        if not image:
+            return error("Empty file")
 
-# ---------------- COMBINED ANALYSIS ----------------
+        result = analyze_image(image)
+
+        return success(result)
+
+    except Exception as e:
+        logging.error(f"Deepfake error: {e}")
+        return error("Internal error")
+
+# ---------- COMBINED ----------
 @app.post("/api/analyze-all")
 async def analyze_all(
     text: Optional[str] = None,
     phone: Optional[str] = None,
     file: UploadFile = File(None)
 ):
-    deepfake_result = None
-    news_result = None
-    phone_result = None
+    try:
+        deepfake_result = None
+        news_result = None
+        phone_result = None
 
-    if file:
-        image = await file.read()
-        deepfake_result = analyze_image(image)
+        if file:
+            image = await file.read()
+            deepfake_result = analyze_image(image)
 
-    if text:
-        clean = preprocess(text)
-        vec = vectorizer.transform([clean])
-        prob = model.predict_proba(vec)[0].max() * 100
-        verdict = "FAKE" if prob > 65 else "REAL"
+        if text:
+            clean = preprocess(text)
+            vec = vectorizer.transform([clean])
+            prob = model.predict_proba(vec)[0].max() * 100
+            verdict = "FAKE" if prob > 65 else "REAL"
 
-        news_result = {
-            "verdict": verdict,
-            "confidence": round(prob, 2)
-        }
-
-    if phone:
-        try:
-            parsed = phonenumbers.parse(phone)
-            fraud_score = 20
-            if not phonenumbers.is_valid_number(parsed):
-                fraud_score += 50
-
-            phone_result = {
-                "fraudScore": fraud_score,
-                "verdict": "HIGH RISK" if fraud_score > 50 else "SAFE"
-            }
-        except:
-            phone_result = {
-                "fraudScore": 70,
-                "verdict": "HIGH RISK"
+            news_result = {
+                "verdict": verdict,
+                "confidence": round(prob, 2)
             }
 
-    trust = calculate_trust_score(
-        deepfake=deepfake_result,
-        news=news_result,
-        phone=phone_result
+        if phone:
+            phone_result = {
+                "fraudScore": 70 if len(phone) < 10 else 20,
+                "verdict": "HIGH RISK" if len(phone) < 10 else "SAFE"
+            }
+
+        trust = calculate_trust_score(
+            deepfake=deepfake_result,
+            news=news_result,
+            phone=phone_result
+        )
+
+        return success({
+            "deepfake": deepfake_result,
+            "news": news_result,
+            "phone": phone_result,
+            "trust": trust
+        })
+
+    except Exception as e:
+        logging.error(f"Analyze-all error: {e}")
+        return error("Internal error")
+
+# ---------- GLOBAL ERROR ----------
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logging.error(f"Unhandled error: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content=error("Something went wrong"),
     )
-
-    return {
-        "deepfake": deepfake_result,
-        "news": news_result,
-        "phone": phone_result,
-        "trust": trust
-    }
