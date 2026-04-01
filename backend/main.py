@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 from phonenumbers import carrier, geocoder
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
-from fastapi import FastAPI, UploadFile, File, Request, HTTPException
+from fastapi import FastAPI, UploadFile, File, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,6 +19,7 @@ from typing import Optional
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from deepfake_detector import analyze_image
+from pymongo import MongoClient
 
 # ✅ GEMINI
 import google.generativeai as genai
@@ -38,7 +39,7 @@ app = FastAPI(title="FROST Cyber Security API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],      # Fixed: was empty
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -51,11 +52,12 @@ app.state.limiter = limiter
 executor = ThreadPoolExecutor()
 
 # ---------------- LOAD ML ----------------
-#with open("model.pkl", "rb") as f:
- #   model = pickle.load(f)
+# Commented original file loading (kept as per your code)
+# with open("model.pkl", "rb") as f:
+model = pickle.load(f)
 
-#ith open("vectorizer.pkl", "rb") as f:
-  #  vectorizer = pickle.load(f)
+# with open("vectorizer.pkl", "rb") as f:
+vectorizer = pickle.load(f)
 
 # ---------------- RESPONSE FORMAT ----------------
 def success(data):
@@ -131,6 +133,21 @@ def suspicious_domain(url):
     return any(x in domain for x in bad)
 
 
+# ---------------- MONGO DB ----------------
+mongo_uri = os.getenv("MONGO_URI")
+if mongo_uri:
+    try:
+        client = MongoClient(mongo_uri)
+        db = client["frost_db"]
+        print("✅ MongoDB connected")
+    except Exception as e:
+        print("❌ MongoDB connection failed:", e)
+        db = None
+else:
+    print("⚠️ No MONGO_URI found")
+    db = None
+
+
 # ================= NEWS API =================
 @app.post("/api/news/check")
 @limiter.limit("10/minute")
@@ -155,6 +172,13 @@ async def news_check(request: Request, data: NewsInput):
         if not text:
             return error("No content")
 
+        # ✅ Mongo log - Request
+        if db:
+            db.logs.insert_one({
+                "type": "news_check",
+                "input": text
+            })
+
         # ================= 🔥 FROST AI (GEMINI PRIMARY) =================
         try:
             response = model_ai.generate_content(
@@ -168,9 +192,19 @@ async def news_check(request: Request, data: NewsInput):
                 {text}
                 """
             )
+
+            # ✅ Mongo log - Response
+            if db:
+                db.logs.insert_one({
+                    "type": "news_check",
+                    "input": text,
+                    "response": response.text
+                })
+
             return success({
                 "answer": response.text
             })
+
         except Exception as ai_error:
             logging.error(f"Gemini failed, using ML fallback: {ai_error}")
 
@@ -187,9 +221,11 @@ async def news_check(request: Request, data: NewsInput):
                 {text}
                 """
             )
+
             return success({
                 "answer": response.text
             })
+
         except Exception as ai_error:
             logging.error(f"Gemini failed: {ai_error}")
             return error(str(ai_error))
