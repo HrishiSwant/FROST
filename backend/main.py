@@ -28,7 +28,7 @@ load_dotenv()
 
 # ✅ INIT GEMINI
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-model_ai = genai.GenerativeModel("gemini-1.5-flash")
+model_ai = genai.GenerativeModel("gemini-pro")
 
 # ---------------- LOGGING ----------------
 logging.basicConfig(level=logging.INFO)
