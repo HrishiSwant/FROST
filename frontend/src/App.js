@@ -34,7 +34,7 @@ function App() {
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme(prev => prev === "dark" ? "light" : "dark");
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
   };
 
   const navigate = (view) => setCurrentView(view);
@@ -42,39 +42,51 @@ function App() {
   // ==================== INTRO ====================
   if (currentView === "intro") {
     return (
-      <div className={`min-h-screen flex items-center justify-center relative overflow-hidden transition-all duration-500
-        ${theme === "dark" ? "bg-[#020617]" : "bg-slate-50"}`}>
-
+      <div
+        className={`min-h-screen flex items-center justify-center relative overflow-hidden transition-all duration-500 ${
+          theme === "dark" ? "bg-[#020617]" : "bg-slate-50"
+        }`}
+      >
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#22d3ee10_1px,transparent_1px),linear-gradient(to_bottom,#22d3ee10_1px,transparent_1px)] bg-[size:50px_50px] opacity-30" />
 
         <div className="relative z-10 text-center px-6 max-w-4xl">
           <div className="flex justify-center mb-8">
-            <div className={`w-24 h-24 rounded-full flex items-center justify-center border transition-all duration-300
-              ${theme === "dark" ? "bg-cyan-500/10 border-cyan-400/30" : "bg-cyan-600/10 border-cyan-500/30"} animate-pulse`}>
-              <Zap className={`w-14 h-14 ${theme === "dark" ? "text-cyan-400" : "text-cyan-600"}`} />
+            <div
+              className={`w-24 h-24 rounded-full flex items-center justify-center border transition-all duration-300 ${
+                theme === "dark"
+                  ? "bg-cyan-500/10 border-cyan-400/30"
+                  : "bg-cyan-600/10 border-cyan-500/30"
+              } animate-pulse`}
+            >
+              <Zap
+                className={`w-14 h-14 ${
+                  theme === "dark" ? "text-cyan-400" : "text-cyan-600"
+                }`}
+              />
             </div>
           </div>
 
-          <h1 className={`text-7xl md:text-8xl font-bold tracking-tighter mb-4 transition-colors
-            ${theme === "dark" 
-              ? "bg-gradient-to-r from-cyan-300 via-white to-purple-300 bg-clip-text text-transparent" 
-              : "text-slate-900"}`}>
+          <h1
+            className={`text-7xl md:text-8xl font-bold tracking-tighter mb-4 ${
+              theme === "dark"
+                ? "bg-gradient-to-r from-cyan-300 via-white to-purple-300 bg-clip-text text-transparent"
+                : "text-slate-900"
+            }`}
+          >
             FROST
           </h1>
 
-          <p className={`text-4xl md:text-5xl font-light tracking-tight mb-6 transition-colors
-            ${theme === "dark" ? "text-slate-300" : "text-slate-700"}`}>
+          <p
+            className={`text-4xl md:text-5xl mb-6 ${
+              theme === "dark" ? "text-slate-300" : "text-slate-700"
+            }`}
+          >
             Defending Reality
-          </p>
-
-          <p className={`text-xl max-w-md mx-auto mb-12 transition-colors
-            ${theme === "dark" ? "text-slate-400" : "text-slate-600"}`}>
-            AI-Powered Deepfake • Fake News • Scam Detection Platform
           </p>
 
           <button
             onClick={() => navigate("dashboard")}
-            className="group relative px-12 py-6 bg-gradient-to-r from-cyan-500 to-purple-600 text-black font-semibold text-2xl rounded-3xl overflow-hidden hover:scale-105 transition-all duration-300 shadow-xl"
+            className="px-12 py-6 bg-gradient-to-r from-cyan-500 to-purple-600 text-black font-semibold text-2xl rounded-3xl hover:scale-105 transition-all"
           >
             ENTER COMMAND CENTER
           </button>
@@ -86,12 +98,15 @@ function App() {
   // ==================== DASHBOARD ====================
   if (currentView === "dashboard") {
     return (
-      <div className={`min-h-screen transition-all duration-500
-        ${theme === "dark" ? "bg-[#020617] text-white" : "bg-slate-50 text-slate-900"}`}>
-
+      <div
+        className={`min-h-screen ${
+          theme === "dark"
+            ? "bg-[#020617] text-white"
+            : "bg-slate-50 text-slate-900"
+        }`}
+      >
         <nav className="fixed top-0 left-0 right-0 z-50 glass border-b">
-          <div className="max-w-7xl mx-auto px-6 py-5 flex justify-between items-center">
-
+          <div className="max-w-7xl mx-auto px-6 py-5 flex justify-between">
             <div className="text-3xl font-bold">FROST</div>
 
             <div className="flex gap-4">
@@ -104,15 +119,24 @@ function App() {
         </nav>
 
         <div className="pt-28 px-6 max-w-7xl mx-auto grid md:grid-cols-3 gap-8">
-          <div onClick={() => navigate("fake-news")} className="glass p-10 cursor-pointer">
+          <div
+            onClick={() => navigate("fake-news")}
+            className="glass p-10 cursor-pointer"
+          >
             <ShieldCheck /> Fake News
           </div>
 
-          <div onClick={() => navigate("phone")} className="glass p-10 cursor-pointer">
+          <div
+            onClick={() => navigate("phone")}
+            className="glass p-10 cursor-pointer"
+          >
             <Phone /> Phone Check
           </div>
 
-          <div onClick={() => navigate("deepfake")} className="glass p-10 cursor-pointer">
+          <div
+            onClick={() => navigate("deepfake")}
+            className="glass p-10 cursor-pointer"
+          >
             <ScanFace /> Deepfake
           </div>
         </div>
@@ -121,15 +145,38 @@ function App() {
   }
 
   if (currentView === "admin") return <AdminDashboard />;
-  if (currentView === "phone") return <PhoneView goBack={() => navigate("dashboard")} API_BASE={API_BASE} />;
-  if (currentView === "deepfake") return <Deepfake goBack={() => navigate("dashboard")} API_BASE={API_BASE} />;
-  if (currentView === "fake-news") return <Fakenews goBack={() => navigate("dashboard")} API_BASE={API_BASE} />;
+
+  if (currentView === "phone")
+    return (
+      <PhoneView
+        goBack={() => navigate("dashboard")}
+        API_BASE={API_BASE}
+        theme={theme}
+      />
+    );
+
+  if (currentView === "deepfake")
+    return (
+      <Deepfake
+        goBack={() => navigate("dashboard")}
+        API_BASE={API_BASE}
+        theme={theme}
+      />
+    );
+
+  if (currentView === "fake-news")
+    return (
+      <Fakenews
+        goBack={() => navigate("dashboard")}
+        API_BASE={API_BASE}
+        theme={theme}
+      />
+    );
 
   return null;
 }
 
-// ✅ FIXED MISSING COMPONENT
-
+// ==================== PHONE VIEW ====================
 function PhoneView({ goBack, API_BASE, theme }) {
   const [phone, setPhone] = useState("");
   const [result, setResult] = useState(null);
@@ -137,14 +184,19 @@ function PhoneView({ goBack, API_BASE, theme }) {
 
   const checkPhone = async () => {
     if (!phone) return;
+
     setLoading(true);
     setResult(null);
+
     try {
       const res = await fetch(`${API_BASE}/api/phone/check`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone })
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ phone }),
       });
+
       const data = await res.json();
       setResult(data);
     } catch {
@@ -155,47 +207,41 @@ function PhoneView({ goBack, API_BASE, theme }) {
   };
 
   return (
-    <div className={`min-h-screen pt-20 pb-12 px-6 transition-all duration-500
-      ${theme === "dark" ? "bg-[#020617]" : "bg-slate-50"}`}>
-
+    <div
+      className={`min-h-screen pt-20 px-6 ${
+        theme === "dark" ? "bg-[#020617]" : "bg-slate-50"
+      }`}
+    >
       <div className="max-w-xl mx-auto">
-        <button 
-          onClick={goBack} 
-          className={`flex items-center gap-2 mb-8 transition ${theme === "dark" ? "text-cyan-400 hover:text-white" : "text-cyan-600 hover:text-cyan-700"}`}
-        >
-          ← Back to Dashboard
+        <button onClick={goBack} className="mb-6">
+          ← Back
         </button>
 
-        <div className="glass rounded-3xl p-12">
-          <div className="flex items-center gap-4 mb-10">
-            <p className={`text-4xl font-semibold tracking-tight ${theme === "dark" ? "text-white" : "text-slate-900"}`}>
-              Caller Intelligence
-            </p>
-          </div>
+        <div className="glass p-10 rounded-3xl">
+          <h2 className="text-3xl mb-6">Caller Intelligence</h2>
 
           <input
             placeholder="Enter phone number"
-            className={`w-full border rounded-2xl px-6 py-5 text-lg focus:outline-none mb-8
-              ${theme === "dark" 
-                ? "bg-slate-900 border-slate-700 text-white" 
-                : "bg-white border-slate-300 text-slate-900"}`}
+            className="w-full px-4 py-4 mb-6 rounded-xl"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
           />
 
           <button
             onClick={checkPhone}
-            disabled={loading}
-            className="w-full py-6 bg-gradient-to-r from-purple-600 to-cyan-500 rounded-2xl font-semibold text-xl text-black"
+            className="w-full py-4 bg-gradient-to-r from-purple-600 to-cyan-500 rounded-xl"
           >
-            {loading ? "Scanning..." : "Check"}
+            {loading ? "Checking..." : "Check"}
           </button>
 
           {result && !result.error && (
-            <div className="mt-10 space-y-4">
-              <pre className="text-sm">
-                {JSON.stringify(result, null, 2)}
-              </pre>
+            <div className="mt-6 p-6 bg-white/5 rounded-xl">
+              <p>📍 {result.location}</p>
+              <p>📡 {result.carrier}</p>
+              <p className="text-red-400 mt-3">
+                Risk: {result.fraudScore}%
+              </p>
+              <p>{result.verdict}</p>
             </div>
           )}
         </div>
