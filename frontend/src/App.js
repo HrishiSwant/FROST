@@ -130,7 +130,7 @@ function App() {
 // ==================== PHONE VIEW ====================
 function PhoneView({ goBack, API_BASE, theme }) {
   const [phone, setPhone] = useState("");
-  const [result, setResult] = useState(null);
+  const [messages, setMessages] = useState([]);;
   const [loading, setLoading] = useState(false);
 
   const checkPhone = async () => {
