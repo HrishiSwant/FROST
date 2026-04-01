@@ -22,12 +22,10 @@ function App() {
   useEffect(() => {
     if (theme === "dark") {
       document.documentElement.classList.add("dark");
-      document.documentElement.classList.remove("light");
       document.body.style.backgroundColor = "#020617";
       document.body.style.color = "#ffffff";
     } else {
       document.documentElement.classList.remove("dark");
-      document.documentElement.classList.add("light");
       document.body.style.backgroundColor = "#f8fafc";
       document.body.style.color = "#0f172a";
     }
@@ -44,7 +42,9 @@ function App() {
     return (
       <div
         className={`min-h-screen flex items-center justify-center ${
-          theme === "dark" ? "bg-[#020617]" : "bg-slate-50"
+          theme === "dark"
+            ? "bg-[#020617] text-white"
+            : "bg-slate-50 text-slate-900"
         }`}
       >
         <div className="text-center">
@@ -84,21 +84,33 @@ function App() {
         <div className="grid md:grid-cols-3 gap-6 p-10">
           <div
             onClick={() => navigate("fake-news")}
-            className="p-10 glass cursor-pointer hover:scale-105 transition-all duration-200"
+            className={`p-10 rounded-2xl cursor-pointer hover:scale-105 transition-all duration-200 ${
+              theme === "dark"
+                ? "glass bg-white/5 text-white"
+                : "bg-white text-black shadow-lg"
+            }`}
           >
             <ShieldCheck /> Fake News
           </div>
 
           <div
             onClick={() => navigate("phone")}
-            className="p-10 glass cursor-pointer hover:scale-105 transition-all duration-200"
+            className={`p-10 rounded-2xl cursor-pointer hover:scale-105 transition-all duration-200 ${
+              theme === "dark"
+                ? "glass bg-white/5 text-white"
+                : "bg-white text-black shadow-lg"
+            }`}
           >
             <Phone /> Phone Check
           </div>
 
           <div
             onClick={() => navigate("deepfake")}
-            className="p-10 glass cursor-pointer hover:scale-105 transition-all duration-200"
+            className={`p-10 rounded-2xl cursor-pointer hover:scale-105 transition-all duration-200 ${
+              theme === "dark"
+                ? "glass bg-white/5 text-white"
+                : "bg-white text-black shadow-lg"
+            }`}
           >
             <ScanFace /> Deepfake
           </div>
@@ -161,7 +173,9 @@ function PhoneView({ goBack, API_BASE, theme }) {
       });
 
       const data = await res.json();
-      setResult(data);
+
+      // FIX: backend returns { success, data }
+      setResult(data.data);
     } catch {
       setResult({ error: "Lookup failed" });
     } finally {
@@ -170,7 +184,13 @@ function PhoneView({ goBack, API_BASE, theme }) {
   };
 
   return (
-    <div className={`min-h-screen pt-20 px-6`}>
+    <div
+      className={`min-h-screen pt-20 px-6 ${
+        theme === "dark"
+          ? "bg-[#020617] text-white"
+          : "bg-slate-50 text-slate-900"
+      }`}
+    >
       <div className="max-w-xl mx-auto">
         <button
           onClick={goBack}
@@ -179,12 +199,22 @@ function PhoneView({ goBack, API_BASE, theme }) {
           ← Back
         </button>
 
-        <div className="glass p-10 rounded-3xl">
+        <div
+          className={`p-10 rounded-3xl ${
+            theme === "dark"
+              ? "glass bg-white/5"
+              : "bg-white shadow-lg"
+          }`}
+        >
           <h2 className="text-3xl mb-6">Caller Intelligence</h2>
 
           <input
             placeholder="Enter phone number"
-            className="w-full px-4 py-4 mb-6 rounded-xl"
+            className={`w-full px-4 py-4 mb-6 rounded-xl ${
+              theme === "dark"
+                ? "bg-black/30 text-white placeholder-gray-400"
+                : "bg-gray-100 text-black placeholder-gray-500"
+            }`}
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
           />
@@ -196,14 +226,12 @@ function PhoneView({ goBack, API_BASE, theme }) {
             {loading ? "Checking..." : "Check"}
           </button>
 
-          {/* LOADING */}
           {loading && (
             <p className="text-center mt-4 text-purple-400">
               Checking number...
             </p>
           )}
 
-          {/* RESULT */}
           {result && !result.error && (
             <div className="mt-6 p-6 bg-white/5 rounded-xl">
               <p>📍 {result.location}</p>
@@ -214,14 +242,6 @@ function PhoneView({ goBack, API_BASE, theme }) {
               </p>
 
               <p>{result.verdict}</p>
-
-              {/* TRUST SCORE READY */}
-              {result.trust && (
-                <div className="mt-4">
-                  <p className="font-bold">Trust Score</p>
-                  <p>{result.trust.score}/100</p>
-                </div>
-              )}
             </div>
           )}
         </div>
