@@ -1,10 +1,10 @@
 // src/App.js
 import { useState, useEffect } from "react";
-import { ShieldCheck, Phone, ScanFace, Sun, Moon, Zap, Info, ArrowLeft } from "lucide-react";
+import { ShieldCheck, Phone, ScanFace, Sun, Moon, Zap, Info } from "lucide-react";
 
 import Deepfake from "./pages/Deepfake";
 import Fakenews from "./pages/Fakenews";
-import ProjectInfo from "./pages/ProjectInfo";   // ← This was missing
+import ProjectInfo from "./pages/ProjectInfo";
 
 const API_BASE = process.env.REACT_APP_API_URL || "https://frost-7sn1.onrender.com";
 
