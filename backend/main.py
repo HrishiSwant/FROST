@@ -24,8 +24,15 @@ from slowapi.util import get_remote_address
 
 from deepfake_detector import analyze_image
 
+# ✅ NEW: GEMINI
+import google.generativeai as genai
+
 # ---------------- ENV ----------------
 load_dotenv()
+
+# ✅ INIT GEMINI
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+model_ai = genai.GenerativeModel("gemini-pro")
 
 # ---------------- LOGGING ----------------
 logging.basicConfig(level=logging.INFO)
@@ -132,25 +139,47 @@ async def news_check(request: Request, data: NewsInput):
         loop = asyncio.get_event_loop()
         text = data.text
 
+        # ---------------- URL HANDLING ----------------
         if not text and data.url:
             if suspicious_domain(data.url):
                 return success({
-                    "answer": "This source appears suspicious.\n\nThe domain is commonly associated with misleading content.\n\nConfidence: 85%"
+                    "answer": "This source appears suspicious.\n\nThe domain is commonly associated with misleading content."
                 })
 
             title, article = await loop.run_in_executor(executor, scrape, data.url)
             text = f"{title} {article}"
 
-        if not text or len(text) < 10:
-            return error("Content too short")
+        if not text:
+            return error("No content")
 
+        # ================= 🔥 AI ROUTING =================
+        if len(text.split()) <= 10:
+            try:
+                response = model_ai.generate_content(
+                    f"""
+                    Fact-check this statement and respond clearly and naturally.
+                    Keep it short and helpful.
+
+                    Statement:
+                    {text}
+                    """
+                )
+
+                return success({
+                    "answer": response.text
+                })
+
+            except Exception as e:
+                logging.error(f"Gemini error: {e}")
+                return error("AI service unavailable")
+
+        # ================= ML MODEL =================
         clean = preprocess(text)
 
         vec = await loop.run_in_executor(executor, vectorizer.transform, [clean])
         probs = model.predict_proba(vec)[0]
 
         confidence = max(probs) * 100
-
         extra, reasons = fake_signals(clean)
         final = min(confidence + extra, 100)
 
@@ -158,13 +187,13 @@ async def news_check(request: Request, data: NewsInput):
 
         if verdict == "FAKE":
             answer = (
-                "This content appears to be misleading or false.\n\n"
-                "It shows patterns commonly found in sensational or unverified information."
+                "This content appears misleading.\n\n"
+                "It shows patterns often found in sensational or unverified news."
             )
         else:
             answer = (
-                "This content appears to be reliable.\n\n"
-                "The structure and tone align with credible sources."
+                "This content appears reliable.\n\n"
+                "The language and structure align with credible reporting."
             )
 
         if reasons:
@@ -215,10 +244,11 @@ def phone_check(request: Request, data: PhoneInput):
 
         fraud_score = min(score, 100)
 
-        if fraud_score > 60:
-            answer = "This phone number appears risky.\n\n"
-        else:
-            answer = "This phone number appears safe.\n\n"
+        answer = (
+            "This phone number appears risky.\n\n"
+            if fraud_score > 60
+            else "This phone number appears safe.\n\n"
+        )
 
         answer += f"Carrier: {carrier_name}\nLocation: {location}\n"
 
@@ -255,20 +285,11 @@ async def deepfake_check(request: Request, file: UploadFile = File(...)):
         )
 
         if result["verdict"] == "FAKE":
-            answer = (
-                "This image appears manipulated or AI-generated.\n\n"
-                "Inconsistencies were detected in facial patterns."
-            )
+            answer = "This image appears manipulated or AI-generated."
         elif result["verdict"] == "REAL":
-            answer = (
-                "This image appears authentic.\n\n"
-                "No major manipulation detected."
-            )
+            answer = "This image appears authentic."
         else:
-            answer = (
-                "Unable to confidently analyze this image.\n\n"
-                "Try a clearer image with visible face."
-            )
+            answer = "Unable to confidently analyze this image."
 
         answer += f"\n\nConfidence: {result.get('confidence', 0)}%"
 
