@@ -39,7 +39,7 @@ app = FastAPI(title="FROST Cyber Security API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],      # Fixed: was empty
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -52,12 +52,20 @@ app.state.limiter = limiter
 executor = ThreadPoolExecutor()
 
 # ---------------- LOAD ML ----------------
-# Commented original file loading (kept as per your code)
-# with open("model.pkl", "rb") as f:
-model = pickle.load(f)
-
-# with open("vectorizer.pkl", "rb") as f:
-vectorizer = pickle.load(f)
+# ⚠️ CRITICAL ERROR #1: Will crash the app on startup
+try:
+    with open("model.pkl", "rb") as f:
+        model = pickle.load(f)
+    with open("vectorizer.pkl", "rb") as f:
+        vectorizer = pickle.load(f)
+except FileNotFoundError:
+    print("❌ ERROR: model.pkl or vectorizer.pkl not found!")
+    model = None
+    vectorizer = None
+except Exception as e:
+    print(f"❌ ERROR loading ML models: {e}")
+    model = None
+    vectorizer = None
 
 # ---------------- RESPONSE FORMAT ----------------
 def success(data):
@@ -201,9 +209,7 @@ async def news_check(request: Request, data: NewsInput):
                     "response": response.text
                 })
 
-            return success({
-                "answer": response.text
-            })
+            return success({"answer": response.text})
 
         except Exception as ai_error:
             logging.error(f"Gemini failed, using ML fallback: {ai_error}")
@@ -221,11 +227,7 @@ async def news_check(request: Request, data: NewsInput):
                 {text}
                 """
             )
-
-            return success({
-                "answer": response.text
-            })
-
+            return success({"answer": response.text})
         except Exception as ai_error:
             logging.error(f"Gemini failed: {ai_error}")
             return error("AI service temporarily unavailable")
@@ -256,7 +258,13 @@ def phone_check(request: Request, data: PhoneInput):
             if not phonenumbers.is_valid_number(parsed):
                 score += 40
                 reasons.append("Invalid number")
-        except:
+
+            # ✅ Fixed indentation
+            if not phonenumbers.is_possible_number(parsed):
+                score += 30
+                reasons.append("Number format is suspicious")
+
+        except Exception:  # Better practice than bare except
             carrier_name = "Unknown"
             location = "Unknown"
             score += 30
@@ -268,11 +276,13 @@ def phone_check(request: Request, data: PhoneInput):
 
         fraud_score = min(score, 100)
 
-        answer = (
-            "This phone number appears risky.\n\n"
-            if fraud_score > 60
-            else "This phone number appears safe.\n\n"
-        )
+        # ✅ CRITICAL ERROR FIXED: Broken ternary replaced with clean if-elif
+        if fraud_score > 60:
+            answer = "This phone number appears risky.\n\n"
+        elif fraud_score > 30:
+            answer = "This phone number looks suspicious.\n\n"
+        else:
+            answer = "This phone number appears safe.\n\n"
 
         answer += f"Carrier: {carrier_name}\nLocation: {location}\n"
 
