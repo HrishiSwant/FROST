@@ -65,10 +65,9 @@ executor = ThreadPoolExecutor()
 # ---------------- LOAD ML ----------------
 
 with open("model.pkl", "rb") as f:
-model = pickle.load(f)
-
-with open("vectorizer.pkl", "rb") as f:
-vectorizer = pickle.load(f)
+    model = pickle.load(f)
+    with open("vectorizer.pkl", "rb") as f:
+        vectorizer = pickle.load(f)
 
 # ---------------- RESPONSE FORMAT ----------------
 
