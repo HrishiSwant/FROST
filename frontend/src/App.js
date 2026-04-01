@@ -129,31 +129,6 @@ function App() {
 }
 
 // ✅ FIXED MISSING COMPONENT
-function PhoneView({ goBack, API_BASE }) {
-  const [phone, setPhone] = useState("");
-  const [result, setResult] = useState(null);
-
-  const check = async () => {
-    const res = await fetch(`${API_BASE}/api/phone/check`, {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ phone })
-    });
-    setResult(await res.json());
-  };
-
-  return (
-    <div className="p-10">
-      <button onClick={goBack}>← Back</button>
-
-      <input value={phone} onChange={(e)=>setPhone(e.target.value)} />
-
-      <button onClick={check}>Check</button>
-
-      {result && <pre>{JSON.stringify(result,null,2)}</pre>}
-    </div>
-  );
-}
 
 function PhoneView({ goBack, API_BASE, theme }) {
   const [phone, setPhone] = useState("");
