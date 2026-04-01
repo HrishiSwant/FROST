@@ -27,11 +27,8 @@ export default function Fakenews({ goBack, API_BASE, theme }) {
 
       const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error(data.detail || "Investigation failed");
-      }
-
-      setResult(data);
+      // IMPORTANT FIX
+      setResult(data.data);
     } catch (err) {
       setResult({ error: err.message });
     } finally {
@@ -42,7 +39,9 @@ export default function Fakenews({ goBack, API_BASE, theme }) {
   return (
     <div
       className={`min-h-screen pt-20 px-6 ${
-        theme === "dark" ? "bg-[#020617]" : "bg-slate-50"
+        theme === "dark"
+          ? "bg-[#020617] text-white"
+          : "bg-[#f1f5f9] text-slate-900"
       }`}
     >
       <div className="max-w-2xl mx-auto">
@@ -53,16 +52,28 @@ export default function Fakenews({ goBack, API_BASE, theme }) {
           ← Back
         </button>
 
-        <div className="glass p-10 rounded-3xl">
+        <div
+          className={`p-10 rounded-3xl ${
+            theme === "dark"
+              ? "glass bg-white/5"
+              : "bg-white/70 backdrop-blur shadow-lg"
+          }`}
+        >
           <h2 className="text-3xl mb-6">Fake News Detection</h2>
 
+          {/* INPUT */}
           <textarea
-            className="w-full p-4 mb-6 rounded-xl"
+            className={`w-full p-4 mb-6 rounded-xl ${
+              theme === "dark"
+                ? "bg-black/30 text-white placeholder-gray-400"
+                : "bg-white text-slate-900 placeholder-gray-500"
+            }`}
             placeholder="Enter news or URL..."
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
 
+          {/* BUTTON */}
           <button
             onClick={checkNews}
             disabled={loading || !text}
@@ -87,56 +98,34 @@ export default function Fakenews({ goBack, API_BASE, theme }) {
 
           {/* RESULT */}
           {result && !result.error && (
-            <div className="mt-6 p-6 bg-white/5 rounded-xl">
-              <h3 className="text-xl font-bold">{result.verdict}</h3>
+            <div
+              className={`mt-6 p-6 rounded-xl ${
+                theme === "dark"
+                  ? "bg-white/5"
+                  : "bg-slate-100"
+              }`}
+            >
+              <h3 className="text-xl font-bold">
+                {result.verdict}
+              </h3>
 
               <p className="mt-2">
                 Confidence: {result.confidence}%
               </p>
 
-              <div className="mt-4 bg-gray-700 h-2 rounded">
+              <div className="mt-4 bg-gray-300 h-2 rounded">
                 <div
-                  className="h-2 bg-blue-400"
+                  className="h-2 bg-blue-500"
                   style={{ width: `${result.confidence || 0}%` }}
                 />
               </div>
 
-              {/* AI Explanation */}
+              {/* SIGNALS */}
               {result.signals && result.signals.length > 0 && (
-                <div className="mt-4 text-sm text-yellow-400">
+                <div className="mt-4 text-sm text-yellow-500">
                   {result.signals.map((s, i) => (
                     <p key={i}>• {s}</p>
                   ))}
-                </div>
-              )}
-
-              {/* TRUST SCORE (future ready) */}
-              {result.trust && (
-                <div className="mt-6 p-4 bg-white/10 rounded-xl">
-                  <p className="font-bold mb-2">Trust Score</p>
-
-                  <p
-                    className={`${
-                      result.trust.risk === "HIGH"
-                        ? "text-red-400"
-                        : result.trust.risk === "MEDIUM"
-                        ? "text-yellow-400"
-                        : "text-green-400"
-                    }`}
-                  >
-                    {result.trust.risk}
-                  </p>
-
-                  <div className="mt-2 bg-gray-700 h-2 rounded">
-                    <div
-                      className="h-2 bg-gradient-to-r from-red-500 to-green-400"
-                      style={{ width: `${result.trust.score}%` }}
-                    />
-                  </div>
-
-                  <p className="text-sm mt-1">
-                    Score: {result.trust.score}/100
-                  </p>
                 </div>
               )}
             </div>
