@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ScanFace, Upload, ArrowLeft } from "lucide-react";
+import { Upload } from "lucide-react";
 
 export default function Deepfake({ goBack, API_BASE, theme }) {
   const [file, setFile] = useState(null);
