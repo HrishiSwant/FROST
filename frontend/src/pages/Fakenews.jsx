@@ -46,7 +46,10 @@ export default function Fakenews({ goBack, API_BASE, theme }) {
       }`}
     >
       <div className="max-w-2xl mx-auto">
-        <button onClick={goBack} className="mb-6">
+        <button
+          onClick={goBack}
+          className="mb-6 hover:scale-105 transition-all duration-200"
+        >
           ← Back
         </button>
 
@@ -63,10 +66,17 @@ export default function Fakenews({ goBack, API_BASE, theme }) {
           <button
             onClick={checkNews}
             disabled={loading || !text}
-            className="w-full py-4 bg-blue-500 rounded-xl disabled:opacity-60"
+            className="w-full py-4 bg-blue-500 rounded-xl hover:scale-105 transition-all duration-200 disabled:opacity-60"
           >
             {loading ? "Checking..." : "Check"}
           </button>
+
+          {/* LOADING */}
+          {loading && (
+            <p className="text-center mt-4 text-cyan-400">
+              AI is analyzing...
+            </p>
+          )}
 
           {/* ERROR */}
           {result?.error && (
@@ -97,6 +107,36 @@ export default function Fakenews({ goBack, API_BASE, theme }) {
                   {result.signals.map((s, i) => (
                     <p key={i}>• {s}</p>
                   ))}
+                </div>
+              )}
+
+              {/* TRUST SCORE (future ready) */}
+              {result.trust && (
+                <div className="mt-6 p-4 bg-white/10 rounded-xl">
+                  <p className="font-bold mb-2">Trust Score</p>
+
+                  <p
+                    className={`${
+                      result.trust.risk === "HIGH"
+                        ? "text-red-400"
+                        : result.trust.risk === "MEDIUM"
+                        ? "text-yellow-400"
+                        : "text-green-400"
+                    }`}
+                  >
+                    {result.trust.risk}
+                  </p>
+
+                  <div className="mt-2 bg-gray-700 h-2 rounded">
+                    <div
+                      className="h-2 bg-gradient-to-r from-red-500 to-green-400"
+                      style={{ width: `${result.trust.score}%` }}
+                    />
+                  </div>
+
+                  <p className="text-sm mt-1">
+                    Score: {result.trust.score}/100
+                  </p>
                 </div>
               )}
             </div>
