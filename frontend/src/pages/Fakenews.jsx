@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { ShieldCheck, ArrowLeft } from "lucide-react";
 
 export default function Fakenews({ goBack, API_BASE, theme }) {
   const [text, setText] = useState("");
@@ -28,7 +27,9 @@ export default function Fakenews({ goBack, API_BASE, theme }) {
 
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.detail || "Investigation failed");
+      if (!res.ok) {
+        throw new Error(data.detail || "Investigation failed");
+      }
 
       setResult(data);
     } catch (err) {
@@ -39,9 +40,11 @@ export default function Fakenews({ goBack, API_BASE, theme }) {
   };
 
   return (
-    <div className={`min-h-screen pt-20 px-6 ${
-      theme === "dark" ? "bg-[#020617]" : "bg-slate-50"
-    }`}>
+    <div
+      className={`min-h-screen pt-20 px-6 ${
+        theme === "dark" ? "bg-[#020617]" : "bg-slate-50"
+      }`}
+    >
       <div className="max-w-2xl mx-auto">
         <button onClick={goBack} className="mb-6">
           ← Back
@@ -59,10 +62,18 @@ export default function Fakenews({ goBack, API_BASE, theme }) {
 
           <button
             onClick={checkNews}
-            className="w-full py-4 bg-blue-500 rounded-xl"
+            disabled={loading || !text}
+            className="w-full py-4 bg-blue-500 rounded-xl disabled:opacity-60"
           >
             {loading ? "Checking..." : "Check"}
           </button>
+
+          {/* ERROR */}
+          {result?.error && (
+            <div className="mt-6 p-4 bg-red-500/20 text-red-400 rounded-xl">
+              {result.error}
+            </div>
+          )}
 
           {/* RESULT */}
           {result && !result.error && (
@@ -76,7 +87,7 @@ export default function Fakenews({ goBack, API_BASE, theme }) {
               <div className="mt-4 bg-gray-700 h-2 rounded">
                 <div
                   className="h-2 bg-blue-400"
-                  style={{ width: `${result.confidence}%` }}
+                  style={{ width: `${result.confidence || 0}%` }}
                 />
               </div>
 
