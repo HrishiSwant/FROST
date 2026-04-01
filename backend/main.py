@@ -176,37 +176,29 @@ async def news_check(request: Request, data: NewsInput):
             logging.error(f"Gemini failed, using ML fallback: {ai_error}")
 
         # ================= ML FALLBACK (UNCHANGED) =================
-        clean = preprocess(text)
-        vec = await loop.run_in_executor(executor, vectorizer.transform, [clean])
-        probs = model.predict_proba(vec)[0]
-        confidence = max(probs) * 100
-        extra, reasons = fake_signals(clean)
-        final = min(confidence + extra, 100)
-        verdict = "FAKE" if probs[0] > probs[1] else "REAL"
+       try:
+    response = model_ai.generate_content(
+        f"""
+        You are FROST AI, a smart and conversational assistant.
 
-        if verdict == "FAKE":
-            answer = (
-                "This content appears misleading.\n\n"
-                "It shows patterns often found in sensational or unverified news."
-            )
-        else:
-            answer = (
-                "This content appears reliable.\n\n"
-                "The language and structure align with credible reporting."
-            )
+        Talk naturally like ChatGPT.
 
-        if reasons:
-            answer += "\n\nKey observations:\n"
-            for r in reasons:
-                answer += f"• {r}\n"
+        If the statement is factual, confirm it clearly.
+        If it's false or misleading, explain politely.
+        Keep answers simple and human-like.
 
-        answer += f"\nConfidence: {round(final, 2)}%"
-        return success({"answer": answer})
+        User input:
+        {text}
+        """
+    )
 
-    except Exception as e:
-        logging.error(f"News error: {e}")
-        return error("Internal error")
+    return success({
+        "answer": response.text
+    })
 
+except Exception as ai_error:
+    logging.error(f"Gemini failed: {ai_error}")
+    return error("AI service temporarily unavailable")
 
 # ================= PHONE API =================
 @app.post("/api/phone/check")
