@@ -228,7 +228,7 @@ async def news_check(request: Request, data: NewsInput):
 
         except Exception as ai_error:
             logging.error(f"Gemini failed: {ai_error}")
-            return error(str(ai_error))
+            return error("AI service temporarily unavailable")
 
     except Exception as e:
         logging.error(f"News error: {e}")
