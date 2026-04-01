@@ -5,6 +5,8 @@ import requests
 import phonenumbers
 import re
 import logging
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlparse
 
 from phonenumbers import carrier, geocoder
@@ -16,6 +18,9 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
+
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from deepfake_detector import analyze_image
 
@@ -34,6 +39,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ---------------- RATE LIMIT ----------------
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+
+# ---------------- ASYNC EXECUTOR ----------------
+executor = ThreadPoolExecutor()
 
 # ---------------- LOAD ML ----------------
 with open("model.pkl", "rb") as f:
@@ -70,7 +82,8 @@ def health():
 def preprocess(text):
     text = text.lower()
     text = re.sub(r"http\S+", "", text)
-    text = re.sub(r"[^a-zA-Z ]", "", text)
+    text = re.sub(r"[^a-zA-Z ]", " ", text)
+    text = re.sub(r"\s+", " ", text)
     return text.strip()
 
 def fake_signals(text):
@@ -133,11 +146,13 @@ def calculate_trust_score(deepfake=None, news=None, phone=None):
 
 # ---------- NEWS ----------
 @app.post("/api/news/check")
-def news_check(data: NewsInput):
+@limiter.limit("10/minute")
+async def news_check(data: NewsInput):
     try:
         if not data.text and not data.url:
             return error("Provide text or URL")
 
+        loop = asyncio.get_event_loop()
         text = data.text
 
         if not text and data.url:
@@ -147,20 +162,33 @@ def news_check(data: NewsInput):
                     "confidence": 85
                 })
 
-            title, article = scrape(data.url)
+            title, article = await loop.run_in_executor(
+                executor, scrape, data.url
+            )
             text = f"{title} {article}"
 
         if not text or len(text) < 10:
             return error("Content too short")
 
         clean = preprocess(text)
-        vec = vectorizer.transform([clean])
 
-        prob = model.predict_proba(vec)[0].max() * 100
+        vec = await loop.run_in_executor(
+            executor, vectorizer.transform, [clean]
+        )
+
+        probs = model.predict_proba(vec)[0]
+        confidence = max(probs) * 100
+
+        # confidence smoothing
+        if confidence < 60:
+            confidence += 10
+        elif confidence > 90:
+            confidence -= 5
+
         extra, reasons = fake_signals(clean)
 
-        final = min(prob + extra, 100)
-        verdict = "FAKE" if final > 65 else "REAL"
+        final = min(confidence + extra, 100)
+        verdict = "FAKE" if probs[0] > probs[1] else "REAL"
 
         return success({
             "verdict": verdict,
@@ -174,6 +202,7 @@ def news_check(data: NewsInput):
 
 # ---------- PHONE ----------
 @app.post("/api/phone/check")
+@limiter.limit("15/minute")
 def phone_check(data: PhoneInput):
     try:
         phone = data.phone.strip()
@@ -220,6 +249,7 @@ def phone_check(data: PhoneInput):
 
 # ---------- DEEPFAKE ----------
 @app.post("/api/deepfake/check")
+@limiter.limit("5/minute")
 async def deepfake_check(file: UploadFile = File(...)):
     try:
         if not file.content_type.startswith("image/"):
@@ -230,7 +260,11 @@ async def deepfake_check(file: UploadFile = File(...)):
         if not image:
             return error("Empty file")
 
-        result = analyze_image(image)
+        loop = asyncio.get_event_loop()
+
+        result = await loop.run_in_executor(
+            executor, analyze_image, image
+        )
 
         return success(result)
 
@@ -240,29 +274,40 @@ async def deepfake_check(file: UploadFile = File(...)):
 
 # ---------- COMBINED ----------
 @app.post("/api/analyze-all")
+@limiter.limit("5/minute")
 async def analyze_all(
     text: Optional[str] = None,
     phone: Optional[str] = None,
     file: UploadFile = File(None)
 ):
     try:
+        loop = asyncio.get_event_loop()
+
         deepfake_result = None
         news_result = None
         phone_result = None
 
         if file:
             image = await file.read()
-            deepfake_result = analyze_image(image)
+            deepfake_result = await loop.run_in_executor(
+                executor, analyze_image, image
+            )
 
         if text:
             clean = preprocess(text)
-            vec = vectorizer.transform([clean])
-            prob = model.predict_proba(vec)[0].max() * 100
-            verdict = "FAKE" if prob > 65 else "REAL"
+
+            vec = await loop.run_in_executor(
+                executor, vectorizer.transform, [clean]
+            )
+
+            probs = model.predict_proba(vec)[0]
+            confidence = max(probs) * 100
+
+            verdict = "FAKE" if probs[0] > probs[1] else "REAL"
 
             news_result = {
                 "verdict": verdict,
-                "confidence": round(prob, 2)
+                "confidence": round(confidence, 2)
             }
 
         if phone:
