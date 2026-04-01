@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ShieldCheck, Phone, ScanFace, Sun, Moon, Zap } from "lucide-react";
+import { ShieldCheck, Phone, ScanFace, Sun, Moon } from "lucide-react";
 
 import Deepfake from "./pages/Deepfake";
 import Fakenews from "./pages/Fakenews";
