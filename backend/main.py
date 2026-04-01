@@ -51,11 +51,11 @@ app.state.limiter = limiter
 executor = ThreadPoolExecutor()
 
 # ---------------- LOAD ML ----------------
-with open("model.pkl", "rb") as f:
-    model = pickle.load(f)
+#with open("model.pkl", "rb") as f:
+ #   model = pickle.load(f)
 
-with open("vectorizer.pkl", "rb") as f:
-    vectorizer = pickle.load(f)
+#ith open("vectorizer.pkl", "rb") as f:
+  #  vectorizer = pickle.load(f)
 
 # ---------------- RESPONSE FORMAT ----------------
 def success(data):
