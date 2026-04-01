@@ -1,10 +1,11 @@
 // src/App.js
 import { useState, useEffect } from "react";
-import { ShieldCheck, Phone, ScanFace, Sun, Moon, Zap, Info } from "lucide-react";
+import { ShieldCheck, Phone, ScanFace, Sun, Moon, Zap, Info, LogIn } from "lucide-react";
 
 import Deepfake from "./pages/Deepfake";
 import Fakenews from "./pages/Fakenews";
 import ProjectInfo from "./pages/ProjectInfo";
+import Auth from "./pages/Auth";           // ← New Auth Page
 
 const API_BASE = process.env.REACT_APP_API_URL || "https://frost-7sn1.onrender.com";
 
@@ -59,11 +60,12 @@ function App() {
             >
               Enter Command Center
             </button>
+
             <button
-              onClick={() => navigate("project-info")}
+              onClick={() => navigate("auth")}
               className="px-12 py-6 border border-cyan-400 text-cyan-400 font-medium text-2xl rounded-3xl hover:bg-cyan-400/10 transition-all flex items-center gap-3"
             >
-              <Info size={24} /> Project Information
+              <LogIn size={24} /> Sign In / Sign Up
             </button>
           </div>
         </div>
@@ -86,6 +88,9 @@ function App() {
               </button>
               <button onClick={() => navigate("project-info")} className="flex items-center gap-2 text-cyan-400 hover:text-white">
                 <Info size={20} /> Project
+              </button>
+              <button onClick={() => navigate("auth")} className="flex items-center gap-2 text-cyan-400 hover:text-white">
+                <LogIn size={20} /> Login
               </button>
               <button onClick={() => navigate("intro")} className="text-cyan-400 hover:text-white">← Home</button>
             </div>
@@ -123,11 +128,12 @@ function App() {
   if (currentView === "deepfake") return <Deepfake goBack={() => navigate("dashboard")} API_BASE={API_BASE} theme={theme} />;
   if (currentView === "fake-news") return <Fakenews goBack={() => navigate("dashboard")} API_BASE={API_BASE} theme={theme} />;
   if (currentView === "project-info") return <ProjectInfo goBack={() => navigate("intro")} theme={theme} />;
+  if (currentView === "auth") return <Auth goBack={() => navigate("intro")} theme={theme} />;
 
   return null;
 }
 
-// ==================== PHONE VIEW ====================
+// ==================== PHONE VIEW (unchanged) ====================
 function PhoneView({ goBack, API_BASE, theme }) {
   const [phone, setPhone] = useState("");
   const [result, setResult] = useState(null);
