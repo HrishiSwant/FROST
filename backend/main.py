@@ -135,15 +135,10 @@ async def news_check(request: Request, data: NewsInput):
         if not text and data.url:
             if suspicious_domain(data.url):
                 return success({
-                    "verdict": "SUSPICIOUS",
-                    "confidence": 85,
-                    "signals": ["Suspicious domain detected"],
-                    "explanation": "The source domain appears commonly associated with misleading or low-trust content."
+                    "answer": "This source appears suspicious.\n\nThe domain is commonly associated with misleading content.\n\nConfidence: 85%"
                 })
 
-            title, article = await loop.run_in_executor(
-                executor, scrape, data.url
-            )
+            title, article = await loop.run_in_executor(executor, scrape, data.url)
             text = f"{title} {article}"
 
         if not text or len(text) < 10:
@@ -151,36 +146,143 @@ async def news_check(request: Request, data: NewsInput):
 
         clean = preprocess(text)
 
-        vec = await loop.run_in_executor(
-            executor, vectorizer.transform, [clean]
-        )
-
+        vec = await loop.run_in_executor(executor, vectorizer.transform, [clean])
         probs = model.predict_proba(vec)[0]
+
         confidence = max(probs) * 100
 
-        if confidence < 60:
-            confidence += 10
-        elif confidence > 90:
-            confidence -= 5
-
         extra, reasons = fake_signals(clean)
-
         final = min(confidence + extra, 100)
+
         verdict = "FAKE" if probs[0] > probs[1] else "REAL"
 
-        explanation = (
-            "This content appears misleading. It contains patterns often found in sensational or unverified news."
-            if verdict == "FAKE"
-            else "This content appears reliable. The language and structure match credible news patterns."
-        )
+        if verdict == "FAKE":
+            answer = (
+                "This content appears to be misleading or false.\n\n"
+                "It shows patterns commonly found in sensational or unverified information."
+            )
+        else:
+            answer = (
+                "This content appears to be reliable.\n\n"
+                "The structure and tone align with credible sources."
+            )
 
-        return success({
-            "verdict": verdict,
-            "confidence": round(final, 2),
-            "signals": reasons,
-            "explanation": explanation
-        })
+        if reasons:
+            answer += "\n\nKey observations:\n"
+            for r in reasons:
+                answer += f"• {r}\n"
+
+        answer += f"\nConfidence: {round(final, 2)}%"
+
+        return success({"answer": answer})
 
     except Exception as e:
         logging.error(f"News error: {e}")
         return error("Internal error")
+
+# ================= PHONE API =================
+@app.post("/api/phone/check")
+@limiter.limit("15/minute")
+def phone_check(request: Request, data: PhoneInput):
+    try:
+        phone = data.phone.strip()
+
+        if not re.match(r"^\+?[0-9]{10,15}$", phone):
+            return error("Invalid phone number")
+
+        reasons = []
+        score = 0
+
+        try:
+            parsed = phonenumbers.parse(phone)
+
+            carrier_name = carrier.name_for_number(parsed, "en") or "Unknown"
+            location = geocoder.description_for_number(parsed, "en") or "Unknown"
+
+            if not phonenumbers.is_valid_number(parsed):
+                score += 40
+                reasons.append("Invalid number")
+
+        except:
+            carrier_name = "Unknown"
+            location = "Unknown"
+            score += 30
+            reasons.append("Parsing failed")
+
+        if phone.endswith(("0000", "9999", "1234")):
+            score += 20
+            reasons.append("Suspicious pattern")
+
+        fraud_score = min(score, 100)
+
+        if fraud_score > 60:
+            answer = "This phone number appears risky.\n\n"
+        else:
+            answer = "This phone number appears safe.\n\n"
+
+        answer += f"Carrier: {carrier_name}\nLocation: {location}\n"
+
+        if reasons:
+            answer += "\nObservations:\n"
+            for r in reasons:
+                answer += f"• {r}\n"
+
+        answer += f"\nRisk Score: {fraud_score}%"
+
+        return success({"answer": answer})
+
+    except Exception as e:
+        logging.error(f"Phone error: {e}")
+        return error("Internal error")
+
+# ================= DEEPFAKE API =================
+@app.post("/api/deepfake/check")
+@limiter.limit("5/minute")
+async def deepfake_check(request: Request, file: UploadFile = File(...)):
+    try:
+        if not file.content_type.startswith("image/"):
+            return error("Upload image only")
+
+        image_bytes = await file.read()
+
+        if not image_bytes:
+            return error("Empty file")
+
+        loop = asyncio.get_event_loop()
+
+        result = await loop.run_in_executor(
+            executor, analyze_image, image_bytes
+        )
+
+        if result["verdict"] == "FAKE":
+            answer = (
+                "This image appears manipulated or AI-generated.\n\n"
+                "Inconsistencies were detected in facial patterns."
+            )
+        elif result["verdict"] == "REAL":
+            answer = (
+                "This image appears authentic.\n\n"
+                "No major manipulation detected."
+            )
+        else:
+            answer = (
+                "Unable to confidently analyze this image.\n\n"
+                "Try a clearer image with visible face."
+            )
+
+        answer += f"\n\nConfidence: {result.get('confidence', 0)}%"
+
+        return success({"answer": answer})
+
+    except Exception as e:
+        logging.error(f"Deepfake error: {e}")
+        return error("Internal error")
+
+# ================= GLOBAL ERROR =================
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logging.error(f"Unhandled error: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content=error("Something went wrong"),
+    )
