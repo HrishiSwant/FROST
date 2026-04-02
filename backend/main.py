@@ -51,13 +51,14 @@ app.state.limiter = limiter
 # ---------------- ASYNC EXECUTOR ----------------
 executor = ThreadPoolExecutor()
 
-# ---------------- LOAD ML ----------------
-# ⚠️ CRITICAL ERROR #1: Will crash the app on startup
+# ---------------- LOAD ML MODELS ----------------
+# ⚠️ CRITICAL: Safe loading to prevent startup crash
 try:
     with open("model.pkl", "rb") as f:
         model = pickle.load(f)
     with open("vectorizer.pkl", "rb") as f:
         vectorizer = pickle.load(f)
+    print("✅ ML models loaded successfully")
 except FileNotFoundError:
     print("❌ ERROR: model.pkl or vectorizer.pkl not found!")
     model = None
@@ -259,12 +260,11 @@ def phone_check(request: Request, data: PhoneInput):
                 score += 40
                 reasons.append("Invalid number")
 
-            # ✅ Fixed indentation
             if not phonenumbers.is_possible_number(parsed):
                 score += 30
                 reasons.append("Number format is suspicious")
 
-        except Exception:  # Better practice than bare except
+        except Exception:
             carrier_name = "Unknown"
             location = "Unknown"
             score += 30
@@ -276,7 +276,6 @@ def phone_check(request: Request, data: PhoneInput):
 
         fraud_score = min(score, 100)
 
-        # ✅ CRITICAL ERROR FIXED: Broken ternary replaced with clean if-elif
         if fraud_score > 60:
             answer = "This phone number appears risky.\n\n"
         elif fraud_score > 30:
@@ -316,14 +315,21 @@ async def deepfake_check(request: Request, file: UploadFile = File(...)):
             executor, analyze_image, image_bytes
         )
 
-        if result["verdict"] == "FAKE":
-            answer = "This image appears manipulated or AI-generated."
-        elif result["verdict"] == "REAL":
-            answer = "This image appears authentic."
-        else:
-            answer = "Unable to confidently analyze this image."
+        # ✅ FIXED: Duplicate and messy answer construction
+        ai_analysis = result.get("ai_analysis", "Analysis not available")
+        confidence = result.get("confidence", 0)
+        faces = result.get("facesDetected", 0)
+        verdict = result.get("verdict", "ERROR")
 
-        answer += f"\n\nConfidence: {result.get('confidence', 0)}%"
+        # Build clean response
+        answer = f"{ai_analysis}\n\n"
+        answer += f"Verdict: {verdict}\n"
+        answer += f"Confidence: {confidence}%\n"
+        answer += f"Faces Detected: {faces}\n"
+
+        if result.get("blurScore"):
+            answer += f"Blur Score: {result.get('blurScore')}\n"
+
         return success({"answer": answer})
 
     except Exception as e:
