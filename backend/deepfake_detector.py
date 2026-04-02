@@ -9,7 +9,7 @@ face_cascade = cv2.CascadeClassifier(
     cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
 )
 
-# Initialize Gemini model (same as main API)
+# Initialize Gemini model
 model = genai.GenerativeModel("gemini-pro")
 
 
@@ -20,7 +20,7 @@ def analyze_image(image_bytes: bytes):
         img = np.array(image)
         gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
-        # Detect faces
+        # Detect faces (OPTIONAL now)
         faces = face_cascade.detectMultiScale(
             gray,
             scaleFactor=1.2,
@@ -32,33 +32,35 @@ def analyze_image(image_bytes: bytes):
         blur = cv2.Laplacian(gray, cv2.CV_64F).var()
         noise = np.std(gray)
 
-        # ---------------- GEMINI ANALYSIS ----------------
+        # ---------------- GEMINI ANALYSIS (MAIN) ----------------
         try:
             response = model.generate_content([
-                "Analyze this image and determine if it looks AI-generated, manipulated, or real. "
-                "Give a short explanation and confidence (0-100).",
+                "Analyze this image. Determine if it is real, AI-generated, or manipulated. "
+                "Give a clear verdict (REAL, FAKE, or SUSPICIOUS) and a short explanation.",
                 image
             ])
-            ai_text = response.text
+
+            ai_text = response.text.lower()
+
+            # ---------------- VERDICT FROM AI ----------------
+            if "fake" in ai_text or "ai-generated" in ai_text:
+                verdict = "FAKE"
+                confidence = 75
+            elif "suspicious" in ai_text or "uncertain" in ai_text:
+                verdict = "SUSPICIOUS"
+                confidence = 55
+            else:
+                verdict = "REAL"
+                confidence = 70
 
         except Exception as e:
             ai_text = f"AI analysis failed: {str(e)}"
-
-        # ---------------- FINAL VERDICT ----------------
-        if blur < 50:
-            verdict = "LOW_QUALITY"
-            confidence = 30
-            message = "Image is too blurry for reliable analysis."
-
-        elif len(faces) == 0:
             verdict = "UNKNOWN"
-            confidence = 40
-            message = "No clear human face detected."
+            confidence = 0
 
-        else:
-            verdict = "ANALYZED"
-            confidence = 75
-            message = "AI-based analysis completed."
+        # ---------------- QUALITY ADJUSTMENT ----------------
+        if blur < 40:
+            confidence = max(30, confidence - 20)
 
         return {
             "verdict": verdict,
@@ -67,7 +69,7 @@ def analyze_image(image_bytes: bytes):
             "blurScore": round(blur, 2),
             "noiseScore": round(noise, 2),
             "ai_analysis": ai_text,
-            "method": "AI + forensic hybrid analysis"
+            "method": "AI primary + forensic support"
         }
 
     except Exception as e:
