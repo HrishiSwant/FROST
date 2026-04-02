@@ -315,7 +315,8 @@ async def deepfake_check(request: Request, file: UploadFile = File(...)):
             executor, analyze_image, image_bytes
         )
 
-        # Build clean response
+        # ✅ FIXED: Removed duplicate and messy code
+        # Build clean and informative response
         ai_analysis = result.get("ai_analysis", "Analysis not available")
         confidence = result.get("confidence", 0)
         faces = result.get("facesDetected", 0)
@@ -326,10 +327,17 @@ async def deepfake_check(request: Request, file: UploadFile = File(...)):
         answer += f"Verdict: {verdict}\n"
         answer += f"Confidence: {confidence}%\n"
         answer += f"Faces Detected: {faces}\n"
+
         if blur_score is not None:
             answer += f"Blur Score: {blur_score}\n"
 
-        return success({"answer": answer})
+        return success({
+            "answer": answer,
+            "verdict": verdict,
+            "confidence": confidence,
+            "facesDetected": faces,
+            "blurScore": blur_score
+        })
 
     except Exception as e:
         logging.error(f"Deepfake error: {e}")
