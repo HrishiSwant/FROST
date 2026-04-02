@@ -52,7 +52,7 @@ app.state.limiter = limiter
 executor = ThreadPoolExecutor()
 
 # ---------------- LOAD ML MODELS ----------------
-# ⚠️ CRITICAL: Safe loading to prevent startup crash
+# ⚠️ Safe loading to prevent startup crash
 try:
     with open("model.pkl", "rb") as f:
         model = pickle.load(f)
@@ -315,20 +315,19 @@ async def deepfake_check(request: Request, file: UploadFile = File(...)):
             executor, analyze_image, image_bytes
         )
 
-        # ✅ FIXED: Duplicate and messy answer construction
+        # Build clean response
         ai_analysis = result.get("ai_analysis", "Analysis not available")
         confidence = result.get("confidence", 0)
         faces = result.get("facesDetected", 0)
         verdict = result.get("verdict", "ERROR")
+        blur_score = result.get("blurScore")
 
-        # Build clean response
         answer = f"{ai_analysis}\n\n"
         answer += f"Verdict: {verdict}\n"
         answer += f"Confidence: {confidence}%\n"
         answer += f"Faces Detected: {faces}\n"
-
-        if result.get("blurScore"):
-            answer += f"Blur Score: {result.get('blurScore')}\n"
+        if blur_score is not None:
+            answer += f"Blur Score: {blur_score}\n"
 
         return success({"answer": answer})
 
