@@ -21,13 +21,13 @@ from slowapi.util import get_remote_address
 from deepfake_detector import analyze_image
 from pymongo import MongoClient
 
-# ✅ GEMINI
+#  GEMINI
 import google.generativeai as genai
 
 # ---------------- ENV ----------------
 load_dotenv()
 
-# ✅ INIT GEMINI
+#  INIT GEMINI
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 model_ai = genai.GenerativeModel("gemini-pro")
 
@@ -52,19 +52,19 @@ app.state.limiter = limiter
 executor = ThreadPoolExecutor()
 
 # ---------------- LOAD ML MODELS ----------------
-# ⚠️ Safe loading to prevent startup crash
+#  Safe loading to prevent startup crash
 try:
     with open("model.pkl", "rb") as f:
         model = pickle.load(f)
     with open("vectorizer.pkl", "rb") as f:
         vectorizer = pickle.load(f)
-    print("✅ ML models loaded successfully")
+    print(" ML models loaded successfully")
 except FileNotFoundError:
-    print("❌ ERROR: model.pkl or vectorizer.pkl not found!")
+    print(" ERROR: model.pkl or vectorizer.pkl not found!")
     model = None
     vectorizer = None
 except Exception as e:
-    print(f"❌ ERROR loading ML models: {e}")
+    print(f" ERROR loading ML models: {e}")
     model = None
     vectorizer = None
 
@@ -148,9 +148,9 @@ if mongo_uri:
     try:
         client = MongoClient(mongo_uri)
         db = client["frost_db"]
-        print("✅ MongoDB connected")
+        print(" MongoDB connected")
     except Exception as e:
-        print("❌ MongoDB connection failed:", e)
+        print(" MongoDB connection failed:", e)
         db = None
 else:
     print("⚠️ No MONGO_URI found")
@@ -181,7 +181,7 @@ async def news_check(request: Request, data: NewsInput):
         if not text:
             return error("No content")
 
-        # ✅ Mongo log - Request
+        #  Mongo log - Request
         if db:
             db.logs.insert_one({
                 "type": "news_check",
@@ -202,7 +202,7 @@ async def news_check(request: Request, data: NewsInput):
                 """
             )
 
-            # ✅ Mongo log - Response
+            #  Mongo log - Response
             if db:
                 db.logs.insert_one({
                     "type": "news_check",
