@@ -4,7 +4,7 @@ import { ShieldCheck, Phone, ScanFace, Sun, Moon, Zap, Info } from "lucide-react
 
 import Deepfake from "./pages/Deepfake";
 import Fakenews from "./pages/Fakenews";
-import ProjectInfo from "./pages/ProjectInfo";
+import ProjectInfo from "./features/dashboard/pages/AboutFrost";
 
 const API_BASE = process.env.REACT_APP_API_URL || "https://frost-7sn1.onrender.com";
 
