@@ -122,7 +122,7 @@ function App() {
   if (currentView === "phone") return <PhoneView goBack={() => navigate("dashboard")} API_BASE={API_BASE} theme={theme} />;
   if (currentView === "deepfake") return <Deepfake goBack={() => navigate("dashboard")} API_BASE={API_BASE} theme={theme} />;
   if (currentView === "fake-news") return <Fakenews goBack={() => navigate("dashboard")} API_BASE={API_BASE} theme={theme} />;
-  if (currentView === "project-info") return <ProjectInfo goBack={() => navigate("intro")} theme={theme} />;
+  if (currentView === "project-info") return <AboutFrost goBack={() => navigate("intro")} theme={theme} />;
 
   return null;
 }
