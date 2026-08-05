@@ -3,7 +3,7 @@ import { SignIn, SignUp } from "@clerk/clerk-react";
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 
-export default function Authage({ goBack, theme }) {
+export default function AuthPage({ goBack, theme }) {
   const [mode, setMode] = useState("sign-in"); // "sign-in" or "sign-up"
 
   return (
