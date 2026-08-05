@@ -1,7 +1,7 @@
 // src/pages/ProjectInfo.jsx
 import { ArrowLeft, Shield, Phone, Image, CheckCircle } from "lucide-react";
 
-export default function ProjectInfo({ goBack, theme }) {
+export default function AboutFrost({ goBack, theme }) {
   return (
     <div className={`min-h-screen pt-20 pb-16 px-6 ${theme === "dark" ? "bg-[#020617]" : "bg-slate-50"}`}>
       <div className="max-w-4xl mx-auto">
