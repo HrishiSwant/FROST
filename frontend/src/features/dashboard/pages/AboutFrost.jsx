@@ -1,4 +1,5 @@
 // src/pages/ProjectInfo.jsx
+import React from "react";
 import { ArrowLeft, Shield, Phone, Image, CheckCircle } from "lucide-react";
 
 export default function AboutFrost({ goBack, theme }) {
