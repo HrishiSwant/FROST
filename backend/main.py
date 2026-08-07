@@ -2,13 +2,11 @@
 import os
 import pickle
 import requests
-import phonenumbers
 import re
 import logging
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlparse
-from phonenumbers import carrier, geocoder
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 from fastapi import FastAPI, UploadFile, File, Request
