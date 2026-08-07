@@ -20,6 +20,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from deepfake_detector import analyze_image
 from pymongo import MongoClient
+from app.api.phone import router as phone_router
 
 #  GEMINI
 import google.generativeai as genai
@@ -36,7 +37,7 @@ logging.basicConfig(level=logging.INFO)
 
 # ---------------- APP ----------------
 app = FastAPI(title="FROST Cyber Security API")
-
+app.include_router(phone_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
