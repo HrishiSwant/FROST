@@ -8,10 +8,7 @@ def analyze_phone(phone: str):
     phone = phone.strip()
 
     if not re.match(r"^\+?[0-9]{10,15}$", phone):
-        return {
-            "success": False,
-            "error": "Invalid phone number"
-        }
+        raise ValueError("Invalid phone number")
 
     reasons = []
     score = 0
@@ -67,10 +64,9 @@ def analyze_phone(phone: str):
     answer += f"\nRisk Score: {fraud_score}%"
 
     return {
-        "success": True,
-        "answer": answer,
-        "carrier": carrier_name,
-        "location": location,
-        "fraud_score": fraud_score,
-        "reasons": reasons,
-    }
+    "answer": answer,
+    "carrier": carrier_name,
+    "location": location,
+    "fraud_score": fraud_score,
+    "reasons": reasons,
+}
