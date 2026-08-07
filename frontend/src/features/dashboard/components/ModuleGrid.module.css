@@ -1,0 +1,30 @@
+.wrapper {
+  margin-top: 40px;
+}
+
+.wrapper h2 {
+  color: white;
+  margin-bottom: 20px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card h3 {
+  color: white;
+  font-size: 20px;
+}
+
+.card p {
+  color: #94a3b8;
+  line-height: 1.5;
+}
