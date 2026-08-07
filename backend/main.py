@@ -240,78 +240,78 @@ async def news_check(request: Request, data: NewsInput):
 
 
 # ================= PHONE API =================
-@app.post("/api/phone/check")
-@limiter.limit("15/minute")
-def phone_check(request: Request, data: PhoneInput):
-    try:
-        phone = data.phone.strip()
+#  @app.post("/api/phone/check")
+# # @limiter.limit("15/minute")
+# def phone_check(request: Request, data: PhoneInput):
+#     try:
+#         phone = data.phone.strip()
 
-        if not re.match(r"^\+?[0-9]{10,15}$", phone):
-            return error("Invalid phone number")
+#         if not re.match(r"^\+?[0-9]{10,15}$", phone):
+#             return error("Invalid phone number")
 
-        reasons = []
-        score = 0
-        carrier_name = "Unknown"
-        location = "Unknown"
+#         reasons = []
+#         score = 0
+#         carrier_name = "Unknown"
+#         location = "Unknown"
 
-        try:
-            # Parse with India as default region (better for Indian numbers)
-            parsed = phonenumbers.parse(phone, "IN")
-            is_valid = phonenumbers.is_valid_number(parsed)
-            is_possible = phonenumbers.is_possible_number(parsed)
+#         try:
+#             # Parse with India as default region (better for Indian numbers)
+#             parsed = phonenumbers.parse(phone, "IN")
+#             is_valid = phonenumbers.is_valid_number(parsed)
+#             is_possible = phonenumbers.is_possible_number(parsed)
 
-            carrier_name = carrier.name_for_number(parsed, "en") or "Indian Mobile Network"
-            location = geocoder.description_for_number(parsed, "en") or "India"
+#             carrier_name = carrier.name_for_number(parsed, "en") or "Indian Mobile Network"
+#             location = geocoder.description_for_number(parsed, "en") or "India"
 
-            if not is_valid:
-                score += 40
-                reasons.append("Invalid number")
+#             if not is_valid:
+#                 score += 40
+#                 reasons.append("Invalid number")
 
-            if not is_possible:
-                score += 30
-                reasons.append("Unusual number format")
+#             if not is_possible:
+#                 score += 30
+#                 reasons.append("Unusual number format")
 
-        except Exception:
-            score += 30
-            reasons.append("Parsing failed")
+#         except Exception:
+#             score += 30
+#             reasons.append("Parsing failed")
 
-        if phone.endswith(("0000", "9999", "1234")):
-            score += 20
-            reasons.append("Suspicious pattern")
+#         if phone.endswith(("0000", "9999", "1234")):
+#             score += 20
+#             reasons.append("Suspicious pattern")
 
-        if len(phone.replace("+", "")) < 10:
-            score += 20
-            reasons.append("Too short")
+#         if len(phone.replace("+", "")) < 10:
+#             score += 20
+#             reasons.append("Too short")
 
-        fraud_score = min(score, 100)
+#         fraud_score = min(score, 100)
 
-        if fraud_score > 60:
-            answer = "This phone number appears risky.\n\n"
-        elif fraud_score > 30:
-            answer = "This phone number looks suspicious.\n\n"
-        else:
-            answer = "This phone number appears safe.\n\n"
+#         if fraud_score > 60:
+#             answer = "This phone number appears risky.\n\n"
+#         elif fraud_score > 30:
+#             answer = "This phone number looks suspicious.\n\n"
+#         else:
+#             answer = "This phone number appears safe.\n\n"
 
-        answer += f"Carrier: {carrier_name}\nLocation: {location}\n"
+#         answer += f"Carrier: {carrier_name}\nLocation: {location}\n"
 
-        if reasons:
-            answer += "\nObservations:\n"
-            for r in reasons:
-                answer += f"• {r}\n"
+#         if reasons:
+#             answer += "\nObservations:\n"
+#             for r in reasons:
+#                 answer += f"• {r}\n"
 
-        answer += f"\nRisk Score: {fraud_score}%"
+#         answer += f"\nRisk Score: {fraud_score}%"
 
-        return success({
-            "answer": answer,
-            "carrier": carrier_name,
-            "location": location,
-            "fraud_score": fraud_score,
-            "reasons": reasons
-        })
+#         return success({
+#             "answer": answer,
+#             "carrier": carrier_name,
+#             "location": location,
+#             "fraud_score": fraud_score,
+#             "reasons": reasons
+#         })
 
-    except Exception as e:
-        logging.error(f"Phone error: {e}")
-        return error("Internal error")
+#     except Exception as e:
+#         logging.error(f"Phone error: {e}")
+#         return error("Internal error") 
 
 
 # ================= DEEPFAKE API =================
