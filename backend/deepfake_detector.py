@@ -4,9 +4,17 @@ from PIL import Image
 import io
 
 # Load face detector (Haar Cascade)
-face_cascade = cv2.CascadeClassifier(
-    cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-)
+face_cascade = None
+
+def get_face_cascade():
+    global face_cascade
+
+    if face_cascade is None:
+        face_cascade = cv2.CascadeClassifier(
+            cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+        )
+
+    return face_cascade
 
 def analyze_image(image_bytes: bytes):
     try:
@@ -16,7 +24,8 @@ def analyze_image(image_bytes: bytes):
         gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
         # Detect faces
-        faces = face_cascade.detectMultiScale(
+        cascade = get_face_cascade()
+        faces = cascade.detectMultiScale(
             gray,
             scaleFactor=1.2,
             minNeighbors=5,
