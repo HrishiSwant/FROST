@@ -84,8 +84,7 @@ class NewsInput(BaseModel):
     url: Optional[str] = None
 
 
-class PhoneInput(BaseModel):
-    phone: str
+
 
 
 # ---------------- ROOT ----------------
