@@ -1,5 +1,5 @@
 import AppShell from "../../../components/layouts/AppShell/AppShell";
-
+import ModuleGrid from "../components/ModuleGrid";
 import DashboardHeader from "../components/DashboardHeader";
 import StatsGrid from "../components/StatsGrid";
 import QuickActions from "../components/QuickActions";
@@ -12,6 +12,7 @@ export default function DashboardPage() {
       <StatsGrid />
 
       <QuickActions />
+      <ModuleGrid />
     </AppShell>
   );
 }
