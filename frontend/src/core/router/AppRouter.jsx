@@ -11,7 +11,6 @@ import DashboardPage from "../../features/dashboard/pages/DashboardPage";
 import AboutFrost from "../../features/dashboard/pages/AboutFrost";
 import Deepfake from "../../pages/Deepfake";
 import Fakenews from "../../pages/Fakenews";
-import PhoneIntelligencePage from "../../features/phone-intelligence/pages/PhoneIntelligencePage";
 
 export default function AppRouter() {
   return (
@@ -19,30 +18,13 @@ export default function AppRouter() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
 
-        <Route
-          path="/dashboard"
-          element={<DashboardPage />}
-        />
+        <Route path="/dashboard" element={<DashboardPage />} />
 
-        <Route
-          path="/about"
-          element={<AboutFrost />}
-        />
+        <Route path="/about" element={<AboutFrost />} />
 
-        <Route
-          path="/deepfake"
-          element={<Deepfake />}
-        />
+        <Route path="/deepfake" element={<Deepfake />} />
 
-        <Route
-          path="/news"
-          element={<Fakenews />}
-        />
-
-        <Route
-          path="/phone"
-          element={<PhoneIntelligencePage />}
-        />
+        <Route path="/news" element={<Fakenews />} />
 
         <Route
           path="*"
