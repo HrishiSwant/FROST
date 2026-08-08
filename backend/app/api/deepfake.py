@@ -1,4 +1,7 @@
+from concurrent.futures import ThreadPoolExecutor
+
 from fastapi import APIRouter, UploadFile, File
+
 from app.core.responses import success_response, error_response
 from app.services.deepfake.deepfake_service import analyze_deepfake
 
@@ -7,6 +10,10 @@ router = APIRouter(
     prefix="/api/deepfake",
     tags=["Deepfake Detection"]
 )
+
+
+# Executor used for image analysis
+executor = ThreadPoolExecutor()
 
 
 @router.post("/check")
@@ -42,11 +49,12 @@ async def deepfake_check(
         # ---------------- ANALYZE IMAGE ----------------
 
         result = await analyze_deepfake(
-            image_bytes
+            image_bytes,
+            executor
         )
 
 
-        # ---------------- CHECK ANALYSIS ERROR ----------------
+        # ---------------- ANALYSIS ERROR ----------------
 
         if result.get("verdict") == "ERROR":
 
