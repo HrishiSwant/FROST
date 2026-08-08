@@ -1,0 +1,312 @@
+.page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 75% 35%, rgba(16, 185, 129, 0.12), transparent 30%),
+    radial-gradient(circle at 20% 20%, rgba(6, 182, 212, 0.08), transparent 25%),
+    #020617;
+  color: #f8fafc;
+  overflow: hidden;
+}
+
+.hero {
+  min-height: 78vh;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 120px 7vw 80px;
+
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  align-items: center;
+  gap: 80px;
+}
+
+.content {
+  max-width: 720px;
+}
+
+.badge {
+  display: inline-block;
+  margin-bottom: 24px;
+  padding: 8px 14px;
+
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  border-radius: 999px;
+
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.08);
+
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+.content h1 {
+  margin: 0;
+
+  font-size: clamp(3.5rem, 7vw, 6.5rem);
+  line-height: 0.95;
+  letter-spacing: -0.055em;
+  font-weight: 700;
+}
+
+.content p {
+  max-width: 650px;
+  margin: 32px 0 40px;
+
+  color: #94a3b8;
+  font-size: 20px;
+  line-height: 1.7;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.primaryButton,
+.secondaryButton {
+  border: 0;
+  border-radius: 14px;
+  padding: 15px 25px;
+
+  font-size: 15px;
+  font-weight: 600;
+
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.primaryButton {
+  color: #02110c;
+  background: linear-gradient(135deg, #34d399, #22d3ee);
+}
+
+.primaryButton:hover {
+  transform: translateY(-2px);
+}
+
+.secondaryButton {
+  color: #cbd5e1;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid #334155;
+}
+
+.secondaryButton:hover {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: #64748b;
+}
+
+/* Visual */
+
+.visual {
+  position: relative;
+  min-height: 500px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.orb {
+  position: absolute;
+
+  width: 330px;
+  height: 330px;
+
+  border-radius: 50%;
+
+  background:
+    radial-gradient(
+      circle at 35% 30%,
+      rgba(52, 211, 153, 0.4),
+      rgba(6, 182, 212, 0.15) 45%,
+      transparent 70%
+    );
+
+  filter: blur(10px);
+
+  box-shadow:
+    0 0 80px rgba(16, 185, 129, 0.15),
+    0 0 160px rgba(6, 182, 212, 0.1);
+}
+
+.card {
+  position: absolute;
+
+  width: 250px;
+  padding: 20px;
+
+  border-radius: 18px;
+
+  background: rgba(15, 23, 42, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+
+  backdrop-filter: blur(16px);
+
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
+
+  transition:
+    transform 0.3s ease,
+    border-color 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(52, 211, 153, 0.4);
+}
+
+.card span {
+  display: block;
+  margin-bottom: 8px;
+
+  color: #34d399;
+
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.card strong {
+  display: block;
+
+  color: #f8fafc;
+
+  font-size: 18px;
+}
+
+.card small {
+  display: block;
+  margin-top: 6px;
+
+  color: #64748b;
+
+  line-height: 1.5;
+}
+
+.cardOne {
+  top: 55px;
+  left: 15px;
+  transform: rotate(-5deg);
+}
+
+.cardTwo {
+  top: 190px;
+  right: 0;
+  transform: rotate(4deg);
+}
+
+.cardThree {
+  bottom: 35px;
+  left: 75px;
+  transform: rotate(-2deg);
+}
+
+/* Feature section */
+
+.features {
+  max-width: 1260px;
+  margin: 0 auto;
+
+  padding: 45px 7vw 100px;
+
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.features > div {
+  padding: 30px;
+
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 20px;
+
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.features span {
+  color: #34d399;
+
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.features h3 {
+  margin: 15px 0 10px;
+
+  font-size: 20px;
+}
+
+.features p {
+  margin: 0;
+
+  color: #64748b;
+
+  line-height: 1.6;
+}
+
+/* Responsive */
+
+@media (max-width: 900px) {
+  .hero {
+    grid-template-columns: 1fr;
+    gap: 40px;
+    padding-top: 100px;
+  }
+
+  .visual {
+    min-height: 430px;
+  }
+
+  .features {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .hero {
+    padding: 80px 24px 50px;
+  }
+
+  .content h1 {
+    font-size: 3.3rem;
+  }
+
+  .content p {
+    font-size: 17px;
+  }
+
+  .visual {
+    min-height: 380px;
+  }
+
+  .orb {
+    width: 250px;
+    height: 250px;
+  }
+
+  .card {
+    width: 210px;
+  }
+
+  .cardOne {
+    left: 0;
+  }
+
+  .cardTwo {
+    right: 0;
+  }
+
+  .cardThree {
+    left: 35px;
+  }
+
+  .features {
+    padding: 30px 24px 70px;
+  }
+}
