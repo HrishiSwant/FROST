@@ -9,7 +9,7 @@ numpy
 bcrypt
 pillow
 python-multipart
-opencv-python-headless
+opencv-python-headless==4.13.0.92
 joblib
 httpx
 pymongo
