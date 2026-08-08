@@ -219,21 +219,21 @@ export default function Deepfake({ goBack, API_BASE, theme }) {
                   </div>
 
                   {/* AI Analysis */}
-                  {result.data?.ai_analysis && (
-                    <div
-                      className={`p-6 rounded-2xl text-sm leading-relaxed ${
-                        theme === "dark"
-                          ? "bg-slate-900/70 text-slate-300"
-                          : "bg-white border text-slate-700"
+                  {result.data?.answer && (
+                  <div
+                    className={`p-6 rounded-2xl text-sm leading-relaxed whitespace-pre-line ${
+                      theme === "dark"
+                      ? "bg-slate-900/70 text-slate-300"
+                      : "bg-white border text-slate-700"
                       }`}
                     >
-                      <strong className="block mb-2 text-emerald-400">
-                        AI Analysis:
+                    <strong className="block mb-2 text-emerald-400">
+                      Analysis:
                       </strong>
-                      {result.data.ai_analysis}
+                    {result.data.answer}
                     </div>
                   )}
-                </div>
+                  </div>
               )}
             </div>
           )}
