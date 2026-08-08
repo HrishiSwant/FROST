@@ -1,128 +1,124 @@
-import logging
-
 from fastapi import APIRouter, UploadFile, File
-
-
-from app.services.deepfake.deepfake_service import (
-    analyze_deepfake,
-)
-
-from app.core.responses import (
-    success_response,
-    error_response,
-)
-
-from app.core.news_dependencies import executor
+from app.core.responses import success_response, error_response
+from app.services.deepfake.deepfake_service import analyze_deepfake
 
 
 router = APIRouter(
     prefix="/api/deepfake",
-    tags=["Deepfake Intelligence"],
+    tags=["Deepfake Detection"]
 )
 
 
 @router.post("/check")
 async def deepfake_check(
-    file: UploadFile = File(...),
+    file: UploadFile = File(...)
 ):
 
     try:
 
-        # ================= FILE VALIDATION =================
+        # ---------------- FILE VALIDATION ----------------
 
         if (
             not file.content_type
             or not file.content_type.startswith("image/")
         ):
-
             return error_response(
                 message="Upload image only",
-                status_code=400,
+                status_code=400
             )
 
 
-        # ================= READ IMAGE =================
+        # ---------------- READ IMAGE ----------------
 
         image_bytes = await file.read()
 
         if not image_bytes:
-
             return error_response(
                 message="Empty file",
-                status_code=400,
+                status_code=400
             )
 
 
-        # ================= ANALYZE IMAGE =================
+        # ---------------- ANALYZE IMAGE ----------------
 
         result = await analyze_deepfake(
-            image_bytes=image_bytes,
-            executor=executor,
+            image_bytes
         )
+
+
+        # ---------------- CHECK ANALYSIS ERROR ----------------
 
         if result.get("verdict") == "ERROR":
 
-    return error_response(
-        message=result.get(
-            "error",
-            "Image analysis failed"
-        ),
-        status_code=500,
-    )
+            return error_response(
+                message=result.get(
+                    "error",
+                    "Image analysis failed"
+                ),
+                status_code=500
+            )
 
 
-        # ================= RESULT =================
+        # ---------------- RESULT VALUES ----------------
 
-        ai_analysis = result.get(
-            "ai_analysis",
-            "Analysis not available",
+        verdict = result.get(
+            "verdict",
+            "UNKNOWN"
         )
 
         confidence = result.get(
             "confidence",
-            0,
+            0
         )
 
         faces = result.get(
             "facesDetected",
-            0,
-        )
-
-        verdict = result.get(
-            "verdict",
-            "ERROR",
+            0
         )
 
         blur_score = result.get(
-            "blurScore",
+            "blurScore"
+        )
+
+        noise_score = result.get(
+            "noiseScore"
+        )
+
+        method = result.get(
+            "method",
+            "Forensic image analysis"
         )
 
 
-        # ================= BUILD RESPONSE =================
+        # ---------------- BUILD ANSWER ----------------
 
-        answer = f"{ai_analysis}\n\n"
-
-        answer += f"Verdict: {verdict}\n"
-
-        answer += f"Confidence: {confidence}%\n"
-
-        answer += f"Faces Detected: {faces}\n"
+        answer = (
+            "Deepfake analysis completed.\n\n"
+            f"Verdict: {verdict}\n"
+            f"Confidence: {confidence}%\n"
+            f"Faces Detected: {faces}\n"
+        )
 
         if blur_score is not None:
-
             answer += f"Blur Score: {blur_score}\n"
 
+        if noise_score is not None:
+            answer += f"Noise Score: {noise_score}\n"
 
-        # ================= RESPONSE =================
+        answer += f"Method: {method}"
+
+
+        # ---------------- SUCCESS RESPONSE ----------------
 
         return success_response(
-            {
+            data={
                 "answer": answer,
                 "verdict": verdict,
                 "confidence": confidence,
                 "facesDetected": faces,
                 "blurScore": blur_score,
-                "ai_analysis": ai_analysis,
+                "noiseScore": noise_score,
+                "method": method
             }
         )
 
@@ -131,17 +127,14 @@ async def deepfake_check(
 
         return error_response(
             message=str(e),
-            status_code=400,
+            status_code=400
         )
 
 
     except Exception as e:
 
-        logging.error(
-            f"Deepfake error: {e}"
-        )
-
         return error_response(
             message="Internal server error",
             status_code=500,
+            errors=str(e)
         )
