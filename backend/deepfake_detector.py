@@ -2,29 +2,66 @@ import cv2
 import numpy as np
 from PIL import Image
 import io
+import logging
 
-# Load face detector (Haar Cascade)
+
+# ================= FACE DETECTOR =================
+
 face_cascade = None
 
+
 def get_face_cascade():
+
     global face_cascade
 
     if face_cascade is None:
+
         face_cascade = cv2.CascadeClassifier(
-            cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+            cv2.data.haarcascades
+            + "haarcascade_frontalface_default.xml"
         )
+
+        if face_cascade.empty():
+            raise RuntimeError(
+                "Failed to load Haar Cascade face detector"
+            )
 
     return face_cascade
 
-def analyze_image(image_bytes: bytes):
-    try:
-        # Convert bytes to image
-        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        img = np.array(image)
-        gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
-        # Detect faces
+# ================= IMAGE ANALYSIS =================
+
+def analyze_image(image_bytes: bytes):
+
+    try:
+
+        # ---------------- VALIDATE INPUT ----------------
+
+        if not image_bytes:
+            raise ValueError("Image data is empty")
+
+
+        # ---------------- CONVERT IMAGE ----------------
+
+        image = Image.open(
+            io.BytesIO(image_bytes)
+        ).convert("RGB")
+
+        img = np.array(image)
+
+
+        # ---------------- GRAYSCALE ----------------
+
+        gray = cv2.cvtColor(
+            img,
+            cv2.COLOR_RGB2GRAY
+        )
+
+
+        # ---------------- FACE DETECTION ----------------
+
         cascade = get_face_cascade()
+
         faces = cascade.detectMultiScale(
             gray,
             scaleFactor=1.2,
@@ -32,32 +69,48 @@ def analyze_image(image_bytes: bytes):
             minSize=(50, 50)
         )
 
-        # Basic forensic checks
-        blur = cv2.Laplacian(gray, cv2.CV_64F).var()
+
+        # ---------------- FORENSIC CHECKS ----------------
+
+        blur = cv2.Laplacian(
+            gray,
+            cv2.CV_64F
+        ).var()
+
         noise = np.std(gray)
+
 
         # ---------------- DECISION LOGIC ----------------
 
-        # Case 1: No face detected
+        # No face detected
         if len(faces) == 0:
+
             verdict = "SUSPICIOUS"
             confidence = 40
 
+
+        # Very blurry image
+        elif blur < 40:
+
+            verdict = "SUSPICIOUS"
+            confidence = 45
+
+
+        # High noise
+        elif noise > 60:
+
+            verdict = "FAKE"
+            confidence = 70
+
+
+        # Normal image
         else:
-            # Case 2: Very blurry image
-            if blur < 40:
-                verdict = "SUSPICIOUS"
-                confidence = 45
 
-            # Case 3: High noise → possible manipulation
-            elif noise > 60:
-                verdict = "FAKE"
-                confidence = 70
+            verdict = "REAL"
+            confidence = 75
 
-            # Case 4: Normal image
-            else:
-                verdict = "REAL"
-                confidence = 75
+
+        # ---------------- RETURN RESULT ----------------
 
         return {
             "verdict": verdict,
@@ -68,9 +121,19 @@ def analyze_image(image_bytes: bytes):
             "method": "Forensic image analysis (OpenCV)"
         }
 
+
     except Exception as e:
+
+        logging.exception(
+            "Deepfake image analysis failed"
+        )
+
         return {
             "verdict": "ERROR",
             "confidence": 0,
+            "facesDetected": 0,
+            "blurScore": None,
+            "noiseScore": None,
+            "method": "Forensic image analysis (OpenCV)",
             "error": str(e)
         }
