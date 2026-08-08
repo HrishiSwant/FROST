@@ -19,6 +19,7 @@ from slowapi.util import get_remote_address
 from deepfake_detector import analyze_image
 from pymongo import MongoClient
 from app.api.phone import router as phone_router
+from app.api.news import router as news_router
 
 #  GEMINI
 import google.generativeai as genai
@@ -36,6 +37,7 @@ logging.basicConfig(level=logging.INFO)
 # ---------------- APP ----------------
 app = FastAPI(title="FROST Cyber Security API")
 app.include_router(phone_router)
+app.include_router(news_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -74,15 +76,6 @@ def success(data):
 
 def error(msg):
     return {"success": False, "error": msg}
-
-
-# ---------------- SCHEMAS ----------------
-class NewsInput(BaseModel):
-    text: Optional[str] = None
-    url: Optional[str] = None
-
-
-
 
 
 # ---------------- ROOT ----------------
@@ -156,35 +149,35 @@ else:
 
 
 # ================= NEWS API =================
-@app.post("/api/news/check")
-@limiter.limit("10/minute")
-async def news_check(request: Request, data: NewsInput):
-    try:
-        if not data.text and not data.url:
-            return error("Provide text or URL")
+# @app.post("/api/news/check")
+# @limiter.limit("10/minute")
+# async def news_check(request: Request, data: NewsInput):
+#     try:
+#         if not data.text and not data.url:
+#             return error("Provide text or URL")
 
-        loop = asyncio.get_event_loop()
-        text = data.text
+#         loop = asyncio.get_event_loop()
+#         text = data.text
 
-        # ---------------- URL HANDLING ----------------
-        if not text and data.url:
-            if suspicious_domain(data.url):
-                return success({
-                    "answer": "This source appears suspicious.\n\nThe domain is commonly associated with misleading content."
-                })
+#         # ---------------- URL HANDLING ----------------
+#         if not text and data.url:
+#             if suspicious_domain(data.url):
+#                 return success({
+#                     "answer": "This source appears suspicious.\n\nThe domain is commonly associated with misleading content."
+#                 })
 
-            title, article = await loop.run_in_executor(executor, scrape, data.url)
-            text = f"{title} {article}"
+#             title, article = await loop.run_in_executor(executor, scrape, data.url)
+#             text = f"{title} {article}"
 
-        if not text:
-            return error("No content")
+#         if not text:
+#             return error("No content")
 
-        #  Mongo log - Request
-        if db:
-            db.logs.insert_one({
-                "type": "news_check",
-                "input": text
-            })
+#         #  Mongo log - Request
+#         if db:
+#             db.logs.insert_one({
+#                 "type": "news_check",
+#                 "input": text
+#             })
 
         # ================= 🔥 FROST AI (GEMINI PRIMARY) =================
         try:
