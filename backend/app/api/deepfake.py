@@ -60,6 +60,16 @@ async def deepfake_check(
             executor=executor,
         )
 
+        if result.get("verdict") == "ERROR":
+
+    return error_response(
+        message=result.get(
+            "error",
+            "Image analysis failed"
+        ),
+        status_code=500,
+    )
+
 
         # ================= RESULT =================
 
