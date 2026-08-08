@@ -14,4 +14,4 @@ joblib
 httpx
 pymongo
 slowapi
-google-generativeai>=0.7.0
+google-genai
