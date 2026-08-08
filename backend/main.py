@@ -19,7 +19,7 @@ from slowapi.util import get_remote_address
 from deepfake_detector import analyze_image
 from pymongo import MongoClient
 
-import google.generativeai as genai
+
 
 from app.api.phone import router as phone_router
 from app.api.news import router as news_router
@@ -28,16 +28,6 @@ from app.api.news import router as news_router
 # ================= ENV =================
 
 load_dotenv()
-
-
-# ================= GEMINI =================
-
-genai.configure(
-    api_key=os.getenv("GEMINI_API_KEY")
-)
-
-model_ai = genai.GenerativeModel("gemini-pro")
-
 
 # ================= LOGGING =================
 
