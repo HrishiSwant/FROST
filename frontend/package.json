@@ -6,10 +6,12 @@
   "dependencies": {
     "@clerk/clerk-react": "^5.4.0",
     "@splinetool/react-spline": "^4.1.0",
+    "@tailwindcss/vite": "^4.3.3",
     "lucide-react": "^0.555.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
-    "react-router-dom": "^7.18.2"
+    "react-router-dom": "^7.18.2",
+    "tailwindcss": "^4.3.3"
   },
   "scripts": {
     "dev": "vite",
