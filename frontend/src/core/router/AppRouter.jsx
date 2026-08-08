@@ -15,32 +15,18 @@ export default function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<LandingPage />} />
 
-        <Route
-          path="/"
-          element={<LandingPage />}
-        />
+        <Route path="/dashboard" element={<DashboardPage />} />
 
-        <Route
-          path="/dashboard"
-          element={<DashboardPage />}
-        />
+        <Route path="/about" element={<AboutFrost />} />
 
-        <Route
-          path="/about"
-          element={<AboutFrost />}
-        />
-
-        <Route
-          path="/deepfake"
-          element={<Deepfake />}
-        />
+        <Route path="/deepfake" element={<Deepfake />} />
 
         <Route
           path="*"
           element={<Navigate to="/" replace />}
         />
-
       </Routes>
     </BrowserRouter>
   );
