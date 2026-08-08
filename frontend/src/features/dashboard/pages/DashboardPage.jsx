@@ -12,6 +12,7 @@ export default function DashboardPage() {
       <StatsGrid />
 
       <QuickActions />
+
       <ModuleGrid />
     </AppShell>
   );
