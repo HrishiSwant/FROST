@@ -14,13 +14,13 @@ const modules = [
     title: "News Intelligence",
     description: "Verify news authenticity and credibility.",
     button: "Open Module",
-    route: "#",
+    route: "/news",
   },
   {
     title: "Phone Intelligence",
     description: "Analyze unknown numbers and scam risk.",
     button: "Open Module",
-    route: "#",
+    route: "/phone",
   },
 ];
 
@@ -28,8 +28,8 @@ export default function ModuleGrid() {
   const navigate = useNavigate();
 
   return (
-    <div>
-      <h2>AI Modules</h2>
+    <section>
+      <h2 className={styles.title}>AI Modules</h2>
 
       <div className={styles.grid}>
         {modules.map((module) => (
@@ -39,19 +39,13 @@ export default function ModuleGrid() {
 
               <p>{module.description}</p>
 
-              <Button
-                onClick={() => {
-                  if (module.route !== "#") {
-                    navigate(module.route);
-                  }
-                }}
-              >
+              <Button onClick={() => navigate(module.route)}>
                 {module.button}
               </Button>
             </div>
           </Card>
         ))}
       </div>
-    </div>
+    </section>
   );
 }
