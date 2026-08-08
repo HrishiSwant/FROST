@@ -1,5 +1,4 @@
 import re
-import logging
 import phonenumbers
 from phonenumbers import carrier, geocoder
 
