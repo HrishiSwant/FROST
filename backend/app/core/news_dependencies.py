@@ -1,8 +1,12 @@
 import os
 from concurrent.futures import ThreadPoolExecutor
 
+from dotenv import load_dotenv
 import google.generativeai as genai
 from pymongo import MongoClient
+
+
+load_dotenv()
 
 
 executor = ThreadPoolExecutor()
@@ -31,3 +35,5 @@ if mongo_uri:
 
     except Exception as e:
         print("MongoDB connection failed:", e)
+else:
+    print("No MONGO_URI found")
