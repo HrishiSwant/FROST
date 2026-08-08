@@ -1,6 +1,5 @@
 # ================= IMPORTS =================
 
-import os
 import pickle
 import logging
 import asyncio
@@ -17,9 +16,6 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from deepfake_detector import analyze_image
-from pymongo import MongoClient
-
-
 
 from app.api.phone import router as phone_router
 from app.api.news import router as news_router
@@ -28,6 +24,7 @@ from app.api.news import router as news_router
 # ================= ENV =================
 
 load_dotenv()
+
 
 # ================= LOGGING =================
 
@@ -73,9 +70,8 @@ executor = ThreadPoolExecutor()
 
 # ================= LOAD ML MODELS =================
 
-# Safe loading to prevent startup crash
-
 try:
+
     with open("model.pkl", "rb") as f:
         model = pickle.load(f)
 
@@ -85,45 +81,29 @@ try:
     print("ML models loaded successfully")
 
 except FileNotFoundError:
-    print("ERROR: model.pkl or vectorizer.pkl not found!")
+
+    print(
+        "ERROR: model.pkl or vectorizer.pkl not found!"
+    )
 
     model = None
     vectorizer = None
 
 except Exception as e:
-    print(f"ERROR loading ML models: {e}")
+
+    print(
+        f"ERROR loading ML models: {e}"
+    )
 
     model = None
     vectorizer = None
-
-
-# ================= MONGO DB =================
-
-mongo_uri = os.getenv("MONGO_URI")
-
-if mongo_uri:
-    try:
-        client = MongoClient(mongo_uri)
-
-        db = client["frost_db"]
-
-        print("MongoDB connected")
-
-    except Exception as e:
-        print("MongoDB connection failed:", e)
-
-        db = None
-
-else:
-    print("No MONGO_URI found")
-
-    db = None
 
 
 # ================= ROOT =================
 
 @app.get("/")
 def root():
+
     return {
         "status": "FROST backend running"
     }
@@ -133,6 +113,7 @@ def root():
 
 @app.get("/health")
 def health():
+
     return {
         "status": "ok"
     }
@@ -146,6 +127,7 @@ async def deepfake_check(
     request: Request,
     file: UploadFile = File(...)
 ):
+
     try:
 
         # ---------------- FILE VALIDATION ----------------
@@ -154,20 +136,24 @@ async def deepfake_check(
             not file.content_type
             or not file.content_type.startswith("image/")
         ):
+
             return {
                 "success": False,
                 "error": "Upload image only"
             }
+
 
         # ---------------- READ IMAGE ----------------
 
         image_bytes = await file.read()
 
         if not image_bytes:
+
             return {
                 "success": False,
                 "error": "Empty file"
             }
+
 
         # ---------------- IMAGE ANALYSIS ----------------
 
@@ -178,6 +164,7 @@ async def deepfake_check(
             analyze_image,
             image_bytes
         )
+
 
         # ---------------- RESULT ----------------
 
@@ -205,6 +192,7 @@ async def deepfake_check(
             "blurScore"
         )
 
+
         # ---------------- BUILD RESPONSE ----------------
 
         answer = f"{ai_analysis}\n\n"
@@ -216,7 +204,11 @@ async def deepfake_check(
         answer += f"Faces Detected: {faces}\n"
 
         if blur_score is not None:
+
             answer += f"Blur Score: {blur_score}\n"
+
+
+        # ---------------- RESPONSE ----------------
 
         return {
             "success": True,
@@ -228,6 +220,7 @@ async def deepfake_check(
                 "blurScore": blur_score
             }
         }
+
 
     except Exception as e:
 
