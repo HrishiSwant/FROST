@@ -9,10 +9,17 @@ export default function Deepfake({ goBack, API_BASE, theme }) {
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
+
     if (selectedFile) {
       // Basic file size check (10MB)
       if (selectedFile.size > 10 * 1024 * 1024) {
         alert("File size exceeds 10MB limit!");
+        return;
+      }
+
+      // Make sure only images are accepted
+      if (!selectedFile.type.startsWith("image/")) {
+        alert("Please select an image file.");
         return;
       }
 
@@ -42,10 +49,14 @@ export default function Deepfake({ goBack, API_BASE, theme }) {
       if (data.success) {
         setResult(data);
       } else {
-        setResult({ error: data.error || "Analysis failed" });
+        setResult({
+          error: data.error || data.message || "Analysis failed",
+        });
       }
     } catch (err) {
-      setResult({ error: err.message || "Failed to connect to server" });
+      setResult({
+        error: err.message || "Failed to connect to server",
+      });
     } finally {
       setLoading(false);
     }
@@ -66,7 +77,7 @@ export default function Deepfake({ goBack, API_BASE, theme }) {
             : "text-slate-600 hover:text-slate-900"
         }`}
       >
-        <ArrowLeft className="w-5 h-5" />
+        <ArrowLeft className="w-4 h-4" />
         Back to Dashboard
       </button>
 
@@ -76,20 +87,28 @@ export default function Deepfake({ goBack, API_BASE, theme }) {
           <div className="flex items-center gap-4 mb-10">
             <ScanFace
               className={`w-12 h-12 ${
-                theme === "dark" ? "text-emerald-400" : "text-emerald-600"
+                theme === "dark"
+                  ? "text-emerald-400"
+                  : "text-emerald-600"
               }`}
             />
+
             <div>
               <h2
                 className={`text-4xl font-semibold ${
-                  theme === "dark" ? "text-white" : "text-slate-900"
+                  theme === "dark"
+                    ? "text-white"
+                    : "text-slate-900"
                 }`}
               >
                 Deepfake Detection
               </h2>
+
               <p
                 className={
-                  theme === "dark" ? "text-slate-400" : "text-slate-600"
+                  theme === "dark"
+                    ? "text-slate-400"
+                    : "text-slate-600"
                 }
               >
                 AI-powered authenticity verification
@@ -99,33 +118,43 @@ export default function Deepfake({ goBack, API_BASE, theme }) {
 
           {/* Upload Area */}
           <div
-            className={`border-2 border-dashed rounded-3xl p-12 text-center transition-all cursor-pointer mb-8
-              ${
-                theme === "dark"
-                  ? "border-slate-700 hover:border-emerald-400"
-                  : "border-slate-300 hover:border-emerald-500"
-              }`}
-            onClick={() => document.getElementById("file-input").click()}
+            className={`border-2 border-dashed rounded-3xl p-12 text-center transition-all cursor-pointer mb-8 ${
+              theme === "dark"
+                ? "border-slate-700 hover:border-emerald-400"
+                : "border-slate-300 hover:border-emerald-500"
+            }`}
+            onClick={() =>
+              document.getElementById("file-input").click()
+            }
           >
             <Upload
               className={`w-16 h-16 mx-auto mb-6 ${
-                theme === "dark" ? "text-slate-400" : "text-slate-500"
+                theme === "dark"
+                  ? "text-slate-400"
+                  : "text-slate-500"
               }`}
             />
+
             <p
               className={`text-xl font-medium ${
-                theme === "dark" ? "text-white" : "text-slate-900"
+                theme === "dark"
+                  ? "text-white"
+                  : "text-slate-900"
               }`}
             >
               Drop image here or click to upload
             </p>
+
             <p
               className={
-                theme === "dark" ? "text-slate-500" : "text-slate-600"
+                theme === "dark"
+                  ? "text-slate-500"
+                  : "text-slate-600"
               }
             >
               JPG, PNG • Max 10MB
             </p>
+
             <input
               id="file-input"
               type="file"
@@ -140,14 +169,17 @@ export default function Deepfake({ goBack, API_BASE, theme }) {
             <div className="mb-8">
               <p
                 className={`text-sm mb-3 ${
-                  theme === "dark" ? "text-slate-400" : "text-slate-500"
+                  theme === "dark"
+                    ? "text-slate-400"
+                    : "text-slate-500"
                 }`}
               >
                 Selected Image
               </p>
+
               <img
                 src={preview}
-                alt="preview"
+                alt="Selected image preview"
                 className="w-full max-h-96 object-contain rounded-2xl border border-slate-700 bg-black"
               />
             </div>
@@ -159,7 +191,9 @@ export default function Deepfake({ goBack, API_BASE, theme }) {
             disabled={!file || loading}
             className="w-full py-6 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-2xl font-semibold text-xl text-black hover:brightness-110 disabled:opacity-70 transition-all"
           >
-            {loading ? "Analyzing with AI..." : "Analyze Image for Deepfake"}
+            {loading
+              ? "Analyzing with AI..."
+              : "Analyze Image for Deepfake"}
           </button>
 
           {/* Results Section */}
@@ -177,7 +211,9 @@ export default function Deepfake({ goBack, API_BASE, theme }) {
                       className={`inline-block px-10 py-4 rounded-3xl text-4xl font-bold ${
                         result.data?.verdict === "REAL"
                           ? "bg-emerald-500/20 text-emerald-400"
-                          : "bg-red-500/20 text-red-400"
+                          : result.data?.verdict === "FAKE"
+                          ? "bg-red-500/20 text-red-400"
+                          : "bg-yellow-500/20 text-yellow-400"
                       }`}
                     >
                       {result.data?.verdict || "UNKNOWN"}
@@ -187,53 +223,188 @@ export default function Deepfake({ goBack, API_BASE, theme }) {
                   {/* Confidence Bar */}
                   <div
                     className={`p-8 rounded-2xl ${
-                      theme === "dark" ? "bg-slate-900/70" : "bg-white border"
+                      theme === "dark"
+                        ? "bg-slate-900/70"
+                        : "bg-white border"
                     }`}
                   >
                     <div className="flex justify-between mb-6">
                       <span
                         className={
-                          theme === "dark" ? "text-slate-400" : "text-slate-500"
+                          theme === "dark"
+                            ? "text-slate-400"
+                            : "text-slate-500"
                         }
                       >
                         Confidence
                       </span>
+
                       <span
                         className={`text-4xl font-semibold ${
-                          theme === "dark" ? "text-white" : "text-slate-900"
+                          theme === "dark"
+                            ? "text-white"
+                            : "text-slate-900"
                         }`}
                       >
-                        {result.data?.confidence || 0}%
+                        {result.data?.confidence ?? 0}%
                       </span>
                     </div>
+
                     <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
                       <div
                         className={`h-full transition-all ${
                           result.data?.verdict === "REAL"
                             ? "bg-emerald-400"
+                            : result.data?.verdict === "SUSPICIOUS"
+                            ? "bg-yellow-400"
                             : "bg-red-400"
                         }`}
-                        style={{ width: `${result.data?.confidence || 0}%` }}
+                        style={{
+                          width: `${result.data?.confidence ?? 0}%`,
+                        }}
                       />
                     </div>
                   </div>
 
-                  {/* AI Analysis */}
+                  {/* Analysis */}
                   {result.data?.answer && (
-                  <div
-                    className={`p-6 rounded-2xl text-sm leading-relaxed whitespace-pre-line ${
-                      theme === "dark"
-                      ? "bg-slate-900/70 text-slate-300"
-                      : "bg-white border text-slate-700"
+                    <div
+                      className={`p-6 rounded-2xl text-sm leading-relaxed whitespace-pre-line ${
+                        theme === "dark"
+                          ? "bg-slate-900/70 text-slate-300"
+                          : "bg-white border text-slate-700"
                       }`}
                     >
-                    <strong className="block mb-2 text-emerald-400">
-                      Analysis:
+                      <strong className="block mb-2 text-emerald-400">
+                        Analysis:
                       </strong>
-                    {result.data.answer}
+
+                      {result.data.answer}
                     </div>
                   )}
+
+                  {/* Detection Details */}
+                  <div
+                    className={`grid grid-cols-1 sm:grid-cols-2 gap-4`}
+                  >
+                    {/* Faces Detected */}
+                    <div
+                      className={`p-5 rounded-2xl ${
+                        theme === "dark"
+                          ? "bg-slate-900/70"
+                          : "bg-white border"
+                      }`}
+                    >
+                      <p
+                        className={`text-sm mb-2 ${
+                          theme === "dark"
+                            ? "text-slate-500"
+                            : "text-slate-500"
+                        }`}
+                      >
+                        Faces Detected
+                      </p>
+
+                      <p
+                        className={`text-2xl font-semibold ${
+                          theme === "dark"
+                            ? "text-white"
+                            : "text-slate-900"
+                        }`}
+                      >
+                        {result.data?.facesDetected ?? 0}
+                      </p>
+                    </div>
+
+                    {/* Blur Score */}
+                    <div
+                      className={`p-5 rounded-2xl ${
+                        theme === "dark"
+                          ? "bg-slate-900/70"
+                          : "bg-white border"
+                      }`}
+                    >
+                      <p
+                        className={`text-sm mb-2 ${
+                          theme === "dark"
+                            ? "text-slate-500"
+                            : "text-slate-500"
+                        }`}
+                      >
+                        Blur Score
+                      </p>
+
+                      <p
+                        className={`text-2xl font-semibold ${
+                          theme === "dark"
+                            ? "text-white"
+                            : "text-slate-900"
+                        }`}
+                      >
+                        {result.data?.blurScore ?? "N/A"}
+                      </p>
+                    </div>
+
+                    {/* Noise Score */}
+                    <div
+                      className={`p-5 rounded-2xl ${
+                        theme === "dark"
+                          ? "bg-slate-900/70"
+                          : "bg-white border"
+                      }`}
+                    >
+                      <p
+                        className={`text-sm mb-2 ${
+                          theme === "dark"
+                            ? "text-slate-500"
+                            : "text-slate-500"
+                        }`}
+                      >
+                        Noise Score
+                      </p>
+
+                      <p
+                        className={`text-2xl font-semibold ${
+                          theme === "dark"
+                            ? "text-white"
+                            : "text-slate-900"
+                        }`}
+                      >
+                        {result.data?.noiseScore ?? "N/A"}
+                      </p>
+                    </div>
+
+                    {/* Analysis Method */}
+                    <div
+                      className={`p-5 rounded-2xl ${
+                        theme === "dark"
+                          ? "bg-slate-900/70"
+                          : "bg-white border"
+                      }`}
+                    >
+                      <p
+                        className={`text-sm mb-2 ${
+                          theme === "dark"
+                            ? "text-slate-500"
+                            : "text-slate-500"
+                        }`}
+                      >
+                        Analysis Method
+                      </p>
+
+                      <p
+                        className={`text-sm font-medium ${
+                          theme === "dark"
+                            ? "text-slate-300"
+                            : "text-slate-700"
+                        }`}
+                      >
+                        {result.data?.method ||
+                          "Forensic image analysis"}
+                      </p>
+                    </div>
                   </div>
+                </div>
               )}
             </div>
           )}
