@@ -15,6 +15,7 @@ from slowapi.util import get_remote_address
 from app.api.phone import router as phone_router
 from app.api.news import router as news_router
 from app.api.deepfake import router as deepfake_router
+from app.api.chat import router as chat_router
 
 
 # ================= ENV =================
@@ -39,6 +40,7 @@ app = FastAPI(
 app.include_router(phone_router)
 app.include_router(news_router)
 app.include_router(deepfake_router)
+app.include_router(chat_router)
 
 
 # ================= CORS =================
