@@ -14,5 +14,5 @@ joblib
 httpx
 pymongo
 slowapi
-google-genai
+
 groq
