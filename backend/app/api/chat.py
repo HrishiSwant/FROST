@@ -1,8 +1,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-from google.genai import types
 
-from app.core.chat_dependencies import ai_client
+from app.core.chat_dependencies import groq_client
 
 
 router = APIRouter(
@@ -14,11 +13,13 @@ router = APIRouter(
 # ================= REQUEST MODEL =================
 
 class ChatMessage(BaseModel):
+
     role: str
     content: str
 
 
 class ChatRequest(BaseModel):
+
     messages: list[ChatMessage]
 
 
@@ -32,17 +33,19 @@ Your purpose is to help users understand cybersecurity,
 digital safety, misinformation, deepfakes, online scams,
 privacy, technology, and general questions.
 
-Be helpful, clear, concise, and conversational.
+You are a helpful conversational AI assistant.
+
+Be clear, concise, friendly, and useful.
 
 Do not claim that you performed an action when you did not.
 
 Do not pretend to have access to private user information,
-devices, accounts, or systems.
+devices, accounts, cameras, microphones, or systems.
 
 When discussing cybersecurity, prioritize safe and defensive
 guidance.
 
-You are an assistant inside the FROST security platform.
+You are an AI assistant inside the FROST security platform.
 """
 
 
@@ -52,12 +55,14 @@ You are an assistant inside the FROST security platform.
 async def chat(request: ChatRequest):
 
     if not request.messages:
+
         return {
             "success": False,
             "error": "No messages provided",
         }
 
-    if ai_client is None:
+    if groq_client is None:
+
         return {
             "success": False,
             "error": "FROST AI is currently unavailable",
@@ -65,39 +70,45 @@ async def chat(request: ChatRequest):
 
     try:
 
-        contents = []
+        messages = [
+            {
+                "role": "system",
+                "content": SYSTEM_INSTRUCTION,
+            }
+        ]
 
         for message in request.messages:
 
-            role = (
-                "model"
-                if message.role == "assistant"
-                else "user"
+            role = message.role
+
+            if role not in ["user", "assistant"]:
+
+                role = "user"
+
+            messages.append(
+                {
+                    "role": role,
+                    "content": message.content,
+                }
             )
 
-            contents.append(
-                types.Content(
-                    role=role,
-                    parts=[
-                        types.Part(
-                            text=message.content
-                        )
-                    ],
-                )
-            )
+        response = groq_client.chat.completions.create(
 
-        response = await ai_client.aio.models.generate_content(
-            model="gemini-3.6-flash",
-            contents=contents,
-            config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_INSTRUCTION,
-            ),
+            model="llama-3.3-70b-versatile",
+
+            messages=messages,
+
+            temperature=0.5,
+
+            max_completion_tokens=1024,
         )
+
+        answer = response.choices[0].message.content
 
         return {
             "success": True,
             "data": {
-                "answer": response.text,
+                "answer": answer,
             },
         }
 
