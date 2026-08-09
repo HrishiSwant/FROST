@@ -15,3 +15,4 @@ httpx
 pymongo
 slowapi
 google-genai
+groq
