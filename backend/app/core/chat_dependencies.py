@@ -1,31 +1,35 @@
 import os
 
 from dotenv import load_dotenv
-from google import genai
+from groq import Groq
 
 load_dotenv()
 
 
-# ================= GEMINI =================
+# ================= GROQ =================
 
-gemini_api_key = os.getenv("GEMINI_API_KEY")
+groq_api_key = os.getenv("GROQ_API_KEY")
 
-if not gemini_api_key:
-    print("WARNING: GEMINI_API_KEY not found")
+if not groq_api_key:
 
-    ai_client = None
+    print("WARNING: GROQ_API_KEY not found")
+
+    groq_client = None
 
 else:
+
     try:
-        ai_client = genai.Client(
-            api_key=gemini_api_key
+
+        groq_client = Groq(
+            api_key=groq_api_key
         )
 
-        print("Gemini client initialized for FROST AI")
+        print("Groq client initialized for FROST AI")
 
     except Exception as e:
+
         print(
-            f"Gemini initialization failed: {e}"
+            f"Groq initialization failed: {e}"
         )
 
-        ai_client = None
+        groq_client = None
