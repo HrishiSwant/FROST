@@ -14,7 +14,7 @@ export default function Intro() {
   const navigate = useNavigate();
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#020617] text-white">
+    <main className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
 
       {/* Background glow */}
       <div className="pointer-events-none absolute left-1/2 top-[-250px] h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-cyan-500/20 blur-[140px]" />
@@ -72,7 +72,6 @@ export default function Intro() {
 
             {/* Heading */}
             <h1 className="text-6xl font-bold leading-[0.95] tracking-tight sm:text-7xl lg:text-8xl">
-
               <span className="block text-white">
                 Defending
               </span>
@@ -80,7 +79,6 @@ export default function Intro() {
               <span className="mt-2 block bg-gradient-to-r from-cyan-300 via-white to-purple-400 bg-clip-text text-transparent">
                 Reality.
               </span>
-
             </h1>
 
             {/* Description */}
@@ -93,6 +91,7 @@ export default function Intro() {
             {/* Buttons */}
             <div className="mt-10 flex flex-col gap-4 sm:flex-row">
 
+              {/* Dashboard */}
               <button
                 type="button"
                 onClick={() => navigate("/dashboard")}
@@ -103,6 +102,7 @@ export default function Intro() {
                 <ArrowRight className="h-5 w-5 transition group-hover:translate-x-1" />
               </button>
 
+              {/* About */}
               <button
                 type="button"
                 onClick={() => navigate("/about")}
@@ -163,6 +163,7 @@ export default function Intro() {
               {/* Module cards */}
               <div className="space-y-4">
 
+                {/* Deepfake */}
                 <button
                   type="button"
                   onClick={() => navigate("/deepfake")}
@@ -185,9 +186,10 @@ export default function Intro() {
                   <ArrowRight className="h-5 w-5 text-slate-600 transition group-hover:translate-x-1 group-hover:text-emerald-400" />
                 </button>
 
+                {/* News */}
                 <button
                   type="button"
-                  onClick={() => navigate("/dashboard")}
+                  onClick={() => navigate("/news")}
                   className="group flex w-full items-center gap-4 rounded-2xl border border-cyan-400/10 bg-cyan-400/5 p-5 text-left transition hover:border-cyan-400/30 hover:bg-cyan-400/10"
                 >
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-cyan-400/10">
@@ -207,9 +209,10 @@ export default function Intro() {
                   <ArrowRight className="h-5 w-5 text-slate-600 transition group-hover:translate-x-1 group-hover:text-cyan-400" />
                 </button>
 
+                {/* Phone */}
                 <button
                   type="button"
-                  onClick={() => navigate("/dashboard")}
+                  onClick={() => navigate("/phone")}
                   className="group flex w-full items-center gap-4 rounded-2xl border border-purple-400/10 bg-purple-400/5 p-5 text-left transition hover:border-purple-400/30 hover:bg-purple-400/10"
                 >
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-purple-400/10">
