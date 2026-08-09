@@ -91,7 +91,7 @@ export default function Intro() {
             {/* Buttons */}
             <div className="mt-10 flex flex-col gap-4 sm:flex-row">
 
-              {/* Dashboard */}
+              {/* Main application entry */}
               <button
                 type="button"
                 onClick={() => navigate("/dashboard")}
@@ -160,14 +160,12 @@ export default function Intro() {
 
               </div>
 
-              {/* Module cards */}
+              {/* Module cards — informational only */}
               <div className="space-y-4">
 
                 {/* Deepfake */}
-                <button
-                  type="button"
-                  onClick={() => navigate("/deepfake")}
-                  className="group flex w-full items-center gap-4 rounded-2xl border border-emerald-400/10 bg-emerald-400/5 p-5 text-left transition hover:border-emerald-400/30 hover:bg-emerald-400/10"
+                <div
+                  className="group flex w-full items-center gap-4 rounded-2xl border border-emerald-400/10 bg-emerald-400/5 p-5"
                 >
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-400/10">
                     <ScanFace className="h-6 w-6 text-emerald-400" />
@@ -183,14 +181,14 @@ export default function Intro() {
                     </p>
                   </div>
 
-                  <ArrowRight className="h-5 w-5 text-slate-600 transition group-hover:translate-x-1 group-hover:text-emerald-400" />
-                </button>
+                  <span className="text-xs text-slate-600">
+                    Available in Security Center
+                  </span>
+                </div>
 
                 {/* News */}
-                <button
-                  type="button"
-                  onClick={() => navigate("/news")}
-                  className="group flex w-full items-center gap-4 rounded-2xl border border-cyan-400/10 bg-cyan-400/5 p-5 text-left transition hover:border-cyan-400/30 hover:bg-cyan-400/10"
+                <div
+                  className="group flex w-full items-center gap-4 rounded-2xl border border-cyan-400/10 bg-cyan-400/5 p-5"
                 >
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-cyan-400/10">
                     <ShieldCheck className="h-6 w-6 text-cyan-400" />
@@ -206,14 +204,14 @@ export default function Intro() {
                     </p>
                   </div>
 
-                  <ArrowRight className="h-5 w-5 text-slate-600 transition group-hover:translate-x-1 group-hover:text-cyan-400" />
-                </button>
+                  <span className="text-xs text-slate-600">
+                    Available in Security Center
+                  </span>
+                </div>
 
                 {/* Phone */}
-                <button
-                  type="button"
-                  onClick={() => navigate("/phone")}
-                  className="group flex w-full items-center gap-4 rounded-2xl border border-purple-400/10 bg-purple-400/5 p-5 text-left transition hover:border-purple-400/30 hover:bg-purple-400/10"
+                <div
+                  className="group flex w-full items-center gap-4 rounded-2xl border border-purple-400/10 bg-purple-400/5 p-5"
                 >
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-purple-400/10">
                     <Phone className="h-6 w-6 text-purple-400" />
@@ -229,8 +227,10 @@ export default function Intro() {
                     </p>
                   </div>
 
-                  <ArrowRight className="h-5 w-5 text-slate-600 transition group-hover:translate-x-1 group-hover:text-purple-400" />
-                </button>
+                  <span className="text-xs text-slate-600">
+                    Available in Security Center
+                  </span>
+                </div>
 
               </div>
 
