@@ -9,6 +9,7 @@ import {
 import LandingPage from "../../features/dashboard/pages/LandingPage";
 import DashboardPage from "../../features/dashboard/pages/DashboardPage";
 import AboutFrost from "../../features/dashboard/pages/AboutFrost";
+import ChatPage from "../../features/chat/pages/ChatPage";
 
 import Deepfake from "../../pages/Deepfake";
 import Fakenews from "../../pages/Fakenews";
@@ -32,6 +33,10 @@ export default function AppRouter() {
         <Route path="/deepfake" element={<Deepfake />} />
 
         <Route path="/news" element={<Fakenews />} />
+
+        
+        {/* Chat page */}
+        <Route path="/chat" element={<ChatPage />} />
 
         <Route
           path="/phone"
