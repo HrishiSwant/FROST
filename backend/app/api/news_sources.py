@@ -76,7 +76,7 @@ async def search_source(
 
         if source_id == "nyt":
 
-            result = await search_nyt_articles(
+            result = search_nyt_articles(
                 query
             )
 
