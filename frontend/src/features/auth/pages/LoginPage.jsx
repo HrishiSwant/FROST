@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ShieldCheck, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import {
+  ShieldCheck,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 
 import { loginUser } from "../../../services/auth/authService";
 
@@ -15,7 +21,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const redirectPath = location.state?.from || "/dashboard";
+  const redirectPath =
+    location.state?.from || "/dashboard";
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -25,7 +32,9 @@ export default function LoginPage() {
     setError("");
 
     if (!email.trim() || !password) {
-      setError("Please enter your email and password.");
+      setError(
+        "Please enter your email and password."
+      );
       return;
     }
 
@@ -35,27 +44,38 @@ export default function LoginPage() {
       const user = await loginUser({
         email: email.trim(),
         password,
-        });
+      });
 
       const isPasswordAccount =
         user?.providerData?.some(
           (provider) =>
             provider.providerId === "password"
-          );
-      if (isPasswordAccount && !user.emailVerified) {
+        );
+
+      if (
+        isPasswordAccount &&
+        !user.emailVerified
+      ) {
         localStorage.setItem(
           "frost_verification_email",
-          user.email
-          );
+          user.email || email.trim()
+        );
+
         navigate("/verify-email", {
           replace: true,
-          });
+        });
 
         return;
-        }
+      }
 
-      navigate(redirectPath, { replace: true });
-      } catch (error) {
+      localStorage.removeItem(
+        "frost_verification_email"
+      );
+
+      navigate(redirectPath, {
+        replace: true,
+      });
+    } catch (error) {
       console.error("Login error:", error);
 
       switch (error?.code) {
@@ -66,7 +86,9 @@ export default function LoginPage() {
           break;
 
         case "auth/invalid-email":
-          setError("Please enter a valid email address.");
+          setError(
+            "Please enter a valid email address."
+          );
           break;
 
         case "auth/too-many-requests":
@@ -94,6 +116,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md">
+
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-400/20 mb-4">
@@ -111,7 +134,11 @@ export default function LoginPage() {
 
         {/* Card */}
         <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 sm:p-8 shadow-2xl">
-          <form onSubmit={handleSubmit} className="space-y-5">
+
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-5"
+          >
             {/* Error */}
             {error && (
               <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
@@ -171,7 +198,11 @@ export default function LoginPage() {
 
                 <input
                   id="login-password"
-                  type={showPassword ? "text" : "password"}
+                  type={
+                    showPassword
+                      ? "text"
+                      : "password"
+                  }
                   value={password}
                   onChange={(event) =>
                     setPassword(event.target.value)
@@ -184,7 +215,9 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() =>
-                    setShowPassword((value) => !value)
+                    setShowPassword(
+                      (value) => !value
+                    )
                   }
                   aria-label={
                     showPassword
@@ -208,7 +241,9 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 py-3.5 font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {loading ? "Signing in..." : "Sign in"}
+              {loading
+                ? "Signing in..."
+                : "Sign in"}
             </button>
           </form>
 
@@ -233,6 +268,7 @@ export default function LoginPage() {
             ← Back to FROST
           </Link>
         </div>
+
       </div>
     </div>
   );
