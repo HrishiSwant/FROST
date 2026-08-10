@@ -10,7 +10,7 @@ import {
 import { auth } from "../../config/firebase";
 
 /**
- * Register a new FROST user with email and password.
+ * Register a new FROST user.
  */
 export async function registerUser({
   email,
@@ -53,14 +53,7 @@ export async function loginUser({
 }
 
 /**
- * Send password reset email.
- */
-export async function resetPassword(email) {
-  await sendPasswordResetEmail(auth, email);
-}
-
-/**
- * Send verification email again.
+ * Send another verification email.
  */
 export async function resendVerificationEmail() {
   const user = auth.currentUser;
@@ -73,6 +66,31 @@ export async function resendVerificationEmail() {
 }
 
 /**
+ * Refresh the current Firebase user.
+ *
+ * This is important because emailVerified
+ * changes after the user verifies their email.
+ */
+export async function refreshCurrentUser() {
+  const user = auth.currentUser;
+
+  if (!user) {
+    return null;
+  }
+
+  await user.reload();
+
+  return auth.currentUser;
+}
+
+/**
+ * Send password reset email.
+ */
+export async function resetPassword(email) {
+  await sendPasswordResetEmail(auth, email);
+}
+
+/**
  * Sign out the current user.
  */
 export async function logoutUser() {
@@ -80,7 +98,7 @@ export async function logoutUser() {
 }
 
 /**
- * Get the currently signed-in Firebase user.
+ * Get current Firebase user.
  */
 export function getCurrentUser() {
   return auth.currentUser;
