@@ -8,9 +8,11 @@ import {
   Bell,
   Settings,
   X,
+  LogOut,
 } from "lucide-react";
 
 import styles from "./Sidebar.module.css";
+import { logoutUser } from "../../../services/auth/authService";
 
 const items = [
   {
@@ -40,6 +42,18 @@ const items = [
 ];
 
 export default function Sidebar({ isOpen, onClose }) {
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+
+      if (onClose) {
+        onClose();
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
   return (
     <aside
       className={`${styles.sidebar} ${
@@ -78,6 +92,16 @@ export default function Sidebar({ isOpen, onClose }) {
           );
         })}
       </nav>
+
+      {/* Logout */}
+      <button
+        type="button"
+        className={styles.logout}
+        onClick={handleLogout}
+      >
+        <LogOut size={24} strokeWidth={1.8} />
+        <span>Logout</span>
+      </button>
     </aside>
   );
 }
