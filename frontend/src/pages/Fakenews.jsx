@@ -14,32 +14,47 @@ const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
   "https://frost-7sn1.onrender.com";
 
+const GOOGLE_SOURCE = {
+  id: "google",
+  name: "Google Fact Check",
+  short_name: "Google",
+  description:
+    "Published fact-check results returned by Google.",
+  type: "fact_check",
+  search_enabled: true,
+};
+
 export default function Fakenews() {
   const navigate = useNavigate();
 
   // =========================================================
-  // MAIN STATE
+  // GOOGLE FACT CHECK
   // =========================================================
 
   const [text, setText] = useState("");
-  const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleResults, setGoogleResults] = useState(null);
 
   // =========================================================
-  // SOURCE STATE
+  // SOURCES
   // =========================================================
 
   const [sources, setSources] = useState([]);
   const [sourcesOpen, setSourcesOpen] = useState(false);
 
-  const [activeSource, setActiveSource] = useState(null);
+  const [activeSource, setActiveSource] =
+    useState(GOOGLE_SOURCE);
+
+  // =========================================================
+  // OTHER SOURCE SEARCH
+  // =========================================================
+
+  const [sourceQuery, setSourceQuery] = useState("");
   const [sourceResults, setSourceResults] = useState(null);
   const [sourceLoading, setSourceLoading] = useState(false);
 
-  const [sourceQuery, setSourceQuery] = useState("");
-
   // =========================================================
-  // LOAD AVAILABLE SOURCES
+  // LOAD SOURCES
   // =========================================================
 
   useEffect(() => {
@@ -70,25 +85,21 @@ export default function Fakenews() {
   // =========================================================
 
   const checkNews = async () => {
-    if (!text.trim() || loading) return;
+    if (!text.trim() || googleLoading) return;
 
     const userText = text.trim();
 
     setText("");
 
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "user",
-        content: userText,
-      },
-    ]);
+    setGoogleLoading(true);
 
-    setLoading(true);
+    setActiveSource(GOOGLE_SOURCE);
 
-    const isURL = userText.startsWith("http");
+    setSourceResults(null);
 
     try {
+      const isURL = userText.startsWith("http");
+
       const res = await fetch(
         `${API_BASE}/api/news/check`,
         {
@@ -115,41 +126,40 @@ export default function Fakenews() {
 
       if (!res.ok) {
         throw new Error(
-          data?.error ||
-            data?.message ||
-            data?.errors ||
+          data?.message ||
+            data?.error ||
             `Server error (${res.status}).`
         );
       }
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "ai",
-          content:
-            data?.data?.answer ||
-            data?.answer ||
-            data?.error ||
-            "No response from server.",
-        },
-      ]);
+      /*
+       * IMPORTANT:
+       *
+       * V3 does NOT return data.answer.
+       *
+       * It returns:
+       *
+       * data.query
+       * data.resultCount
+       * data.sources
+       */
+
+      setGoogleResults(
+        data?.data || null
+      );
     } catch (error) {
       console.error(
-        "News analysis error:",
+        "Google Fact Check error:",
         error
       );
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "ai",
-          content:
-            error?.message ||
-            "Failed to connect to FROST server. Please try again.",
-        },
-      ]);
+      setGoogleResults({
+        error:
+          error?.message ||
+          "Failed to connect to FROST server.",
+      });
     } finally {
-      setLoading(false);
+      setGoogleLoading(false);
     }
   };
 
@@ -160,34 +170,41 @@ export default function Fakenews() {
   const openSource = async (source) => {
     setSourcesOpen(false);
 
-    setActiveSource(source);
-    setSourceResults(null);
+    // -------------------------------------------------------
+    // GOOGLE
+    // -------------------------------------------------------
 
-    /*
-     * Use the latest investigated claim as the
-     * initial search query.
-     */
-    const latestUserMessage = [...messages]
-      .reverse()
-      .find((message) => message.role === "user");
-
-    const initialQuery =
-      latestUserMessage?.content?.trim() || "";
-
-    setSourceQuery(initialQuery);
-
-    if (!initialQuery) {
+    if (source.id === "google") {
+      setActiveSource(GOOGLE_SOURCE);
+      setSourceResults(null);
       return;
     }
 
-    await searchSource(
-      source,
-      initialQuery
-    );
+    // -------------------------------------------------------
+    // OTHER SOURCE
+    // -------------------------------------------------------
+
+    setActiveSource(source);
+
+    const currentQuery =
+      googleResults?.query ||
+      sourceQuery ||
+      "";
+
+    setSourceQuery(currentQuery);
+
+    setSourceResults(null);
+
+    if (currentQuery.trim()) {
+      await searchSource(
+        source,
+        currentQuery
+      );
+    }
   };
 
   // =========================================================
-  // SEARCH SELECTED SOURCE
+  // SEARCH SOURCE
   // =========================================================
 
   const searchSource = async (
@@ -249,7 +266,7 @@ export default function Fakenews() {
   };
 
   // =========================================================
-  // SEARCH BUTTON
+  // SEARCH SUBMIT
   // =========================================================
 
   const handleSourceSearch = (event) => {
@@ -270,14 +287,24 @@ export default function Fakenews() {
   };
 
   // =========================================================
-  // RETURN TO GOOGLE
+  // ALL SOURCES
   // =========================================================
 
-  const showGoogleResults = () => {
-    setActiveSource(null);
-    setSourceResults(null);
-    setSourceQuery("");
-  };
+  const allSources = [
+    GOOGLE_SOURCE,
+    ...sources,
+  ];
+
+  // Remove duplicates if backend eventually
+  // starts returning Google too.
+
+  const uniqueSources = allSources.filter(
+    (source, index, array) =>
+      array.findIndex(
+        (item) =>
+          item.id === source.id
+      ) === index
+  );
 
   // =========================================================
   // RENDER
@@ -286,15 +313,11 @@ export default function Fakenews() {
   return (
     <div className="min-h-screen bg-[#020617] text-white">
 
-      {/* =====================================================
-          BACKGROUND / MAIN CONTAINER
-      ===================================================== */}
-
       <div className="max-w-[1500px] mx-auto px-6 md:px-10 py-10">
 
-        {/* ===================================================
+        {/* =================================================
             BACK
-        =================================================== */}
+        ================================================= */}
 
         <button
           onClick={() =>
@@ -306,9 +329,9 @@ export default function Fakenews() {
           Back to Dashboard
         </button>
 
-        {/* ===================================================
+        {/* =================================================
             HEADER
-        =================================================== */}
+        ================================================= */}
 
         <div className="flex items-center justify-between gap-6 mb-12">
 
@@ -325,9 +348,9 @@ export default function Fakenews() {
               </h1>
 
               <p className="text-slate-400 mt-1">
-                {activeSource
-                  ? `${activeSource.name} news coverage`
-                  : "Published fact-check results from Google"}
+                {activeSource.id === "google"
+                  ? "Published fact-check results from Google"
+                  : `News coverage from ${activeSource.name}`}
               </p>
 
             </div>
@@ -335,7 +358,7 @@ export default function Fakenews() {
           </div>
 
           {/* =================================================
-              OTHER SOURCES BUTTON
+              OTHER SOURCES
           ================================================= */}
 
           <button
@@ -355,25 +378,25 @@ export default function Fakenews() {
 
         </div>
 
-        {/* ===================================================
-            GOOGLE VIEW
-        =================================================== */}
+        {/* =================================================
+            GOOGLE
+        ================================================= */}
 
-        {!activeSource && (
-          <GoogleFactCheckView
-            messages={messages}
-            loading={loading}
+        {activeSource.id === "google" && (
+          <GoogleView
             text={text}
             setText={setText}
-            checkNews={checkNews}
+            loading={googleLoading}
+            results={googleResults}
+            onCheck={checkNews}
           />
         )}
 
-        {/* ===================================================
-            SOURCE VIEW
-        =================================================== */}
+        {/* =================================================
+            OTHER SOURCE
+        ================================================= */}
 
-        {activeSource && (
+        {activeSource.id !== "google" && (
           <SourceView
             source={activeSource}
             query={sourceQuery}
@@ -381,21 +404,17 @@ export default function Fakenews() {
             results={sourceResults}
             loading={sourceLoading}
             onSearch={handleSourceSearch}
-            onBack={showGoogleResults}
           />
         )}
 
       </div>
 
-      {/* =====================================================
-          SOURCE SLIDE PANEL
-      ===================================================== */}
+      {/* ===================================================
+          SOURCE PANEL
+      =================================================== */}
 
       {sourcesOpen && (
         <>
-
-          {/* Overlay */}
-
           <div
             onClick={() =>
               setSourcesOpen(false)
@@ -403,11 +422,9 @@ export default function Fakenews() {
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
           />
 
-          {/* Panel */}
-
           <aside className="fixed top-0 right-0 h-full w-[320px] sm:w-[380px] bg-[#07101f] border-l border-slate-800 z-50 shadow-2xl p-6 overflow-y-auto">
 
-            {/* Panel Header */}
+            {/* HEADER */}
 
             <div className="flex items-center justify-between mb-8">
 
@@ -434,52 +451,68 @@ export default function Fakenews() {
 
             </div>
 
-            {/* Source List */}
+            {/* SOURCE LIST */}
 
             <div className="space-y-3">
 
-              {sources.length === 0 && (
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 text-sm text-slate-400">
-                  No additional sources are currently available.
-                </div>
+              {uniqueSources.map(
+                (source) => {
+
+                  const isActive =
+                    source.id ===
+                    activeSource.id;
+
+                  return (
+                    <button
+                      key={source.id}
+                      onClick={() =>
+                        openSource(source)
+                      }
+                      className={`w-full text-left p-5 rounded-2xl border transition-all group ${
+                        isActive
+                          ? "border-cyan-400/50 bg-cyan-500/5"
+                          : "border-slate-800 bg-slate-900/60 hover:border-cyan-400/50 hover:bg-slate-900"
+                      }`}
+                    >
+
+                      <div className="flex items-center justify-between">
+
+                        <div>
+
+                          <h3
+                            className={`font-medium transition-colors ${
+                              isActive
+                                ? "text-cyan-400"
+                                : "text-white group-hover:text-cyan-400"
+                            }`}
+                          >
+                            {source.name}
+                          </h3>
+
+                          <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+                            {source.description}
+                          </p>
+
+                        </div>
+
+                        <ChevronRight
+                          className={`w-5 h-5 flex-shrink-0 ${
+                            isActive
+                              ? "text-cyan-400"
+                              : "text-slate-600 group-hover:text-cyan-400"
+                          }`}
+                        />
+
+                      </div>
+
+                    </button>
+                  );
+                }
               )}
-
-              {sources.map((source) => (
-
-                <button
-                  key={source.id}
-                  onClick={() =>
-                    openSource(source)
-                  }
-                  className="w-full text-left p-5 rounded-2xl border border-slate-800 bg-slate-900/60 hover:border-cyan-400/50 hover:bg-slate-900 transition-all group"
-                >
-
-                  <div className="flex items-center justify-between">
-
-                    <div>
-
-                      <h3 className="font-medium text-white group-hover:text-cyan-400 transition-colors">
-                        {source.name}
-                      </h3>
-
-                      <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-                        {source.description}
-                      </p>
-
-                    </div>
-
-                    <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-cyan-400 transition-colors flex-shrink-0" />
-
-                  </div>
-
-                </button>
-
-              ))}
 
             </div>
 
           </aside>
-
         </>
       )}
 
@@ -489,109 +522,162 @@ export default function Fakenews() {
 
 
 // =============================================================
-// GOOGLE FACT CHECK VIEW
+// GOOGLE VIEW
 // =============================================================
 
-function GoogleFactCheckView({
-  messages,
-  loading,
+function GoogleView({
   text,
   setText,
-  checkNews,
+  loading,
+  results,
+  onCheck,
 }) {
+  const sources =
+    results?.sources || [];
+
   return (
     <div className="max-w-[1100px]">
 
-      {/* Chat */}
+      {/* =====================================================
+          INPUT
+      ===================================================== */}
 
-      <div className="space-y-4 max-h-[450px] overflow-y-auto mb-8 pr-2">
+      <div className="rounded-3xl border border-slate-800 bg-slate-950/40 p-6 md:p-8 mb-8">
 
-        {messages.length === 0 &&
-          !loading && (
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-8 text-center">
+        <div className="mb-5">
 
-              <ShieldCheck className="w-10 h-10 mx-auto mb-4 text-cyan-400" />
+          <h2 className="text-xl font-semibold text-white">
+            Search Published Fact-Checks
+          </h2>
 
-              <p className="text-slate-300">
-                Paste a news article, claim, or URL below to begin an investigation.
-              </p>
+          <p className="text-sm text-slate-500 mt-1">
+            Enter a claim or article URL to find published fact-checks.
+          </p>
 
-            </div>
-          )}
+        </div>
 
-        {messages.map(
-          (msg, index) => (
-            <div
-              key={index}
-              className={`flex ${
-                msg.role === "user"
-                  ? "justify-end"
-                  : "justify-start"
-              }`}
-            >
+        <textarea
+          placeholder="Paste news text or article URL here..."
+          className="w-full h-32 p-5 rounded-3xl text-lg resize-y focus:outline-none mb-5 bg-slate-900 border border-slate-700 text-white placeholder-slate-500 focus:border-cyan-400 transition-all"
+          value={text}
+          onChange={(e) =>
+            setText(e.target.value)
+          }
+          onKeyDown={(e) => {
 
-              <div
-                className={`max-w-[85%] p-4 rounded-2xl text-sm whitespace-pre-wrap ${
-                  msg.role === "user"
-                    ? "bg-gradient-to-r from-cyan-500 to-purple-600 text-white"
-                    : "bg-slate-900 text-slate-200 border border-slate-700"
-                }`}
-              >
-                {msg.content}
-              </div>
+            if (
+              e.key === "Enter" &&
+              !e.shiftKey
+            ) {
+              e.preventDefault();
+              onCheck();
+            }
 
-            </div>
-          )
-        )}
+          }}
+        />
 
-        {loading && (
-          <div className="flex justify-start">
-
-            <div className="p-4 rounded-2xl bg-slate-900 text-slate-400 border border-slate-800">
-              FROST is investigating published fact-checks...
-            </div>
-
-          </div>
-        )}
+        <button
+          onClick={onCheck}
+          disabled={
+            !text.trim() ||
+            loading
+          }
+          className="w-full py-4 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-2xl font-semibold text-lg text-white hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+        >
+          {loading
+            ? "Searching Published Fact-Checks..."
+            : "Investigate News"}
+        </button>
 
       </div>
 
-      {/* Input */}
+      {/* =====================================================
+          ERROR
+      ===================================================== */}
 
-      <textarea
-        placeholder="Paste news text or article URL here..."
-        className="w-full h-32 p-5 rounded-3xl text-lg resize-y focus:outline-none mb-6 bg-slate-900 border border-slate-700 text-white placeholder-slate-500 focus:border-cyan-400 transition-all"
-        value={text}
-        onChange={(e) =>
-          setText(e.target.value)
-        }
-        onKeyDown={(e) => {
+      {results?.error && (
+        <div className="rounded-2xl border border-red-900/50 bg-red-950/20 p-5 text-red-300 mb-6">
+          {results.error}
+        </div>
+      )}
 
-          if (
-            e.key === "Enter" &&
-            !e.shiftKey
-          ) {
-            e.preventDefault();
-            checkNews();
-          }
+      {/* =====================================================
+          RESULTS
+      ===================================================== */}
 
-        }}
-      />
+      {!loading &&
+        !results?.error &&
+        results &&
+        sources.length > 0 && (
 
-      {/* Button */}
+          <div className="rounded-3xl border border-slate-800 bg-slate-950/40 p-6 md:p-8">
 
-      <button
-        onClick={checkNews}
-        disabled={
-          !text.trim() ||
-          loading
-        }
-        className="w-full py-5 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-2xl font-semibold text-lg text-white hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-      >
-        {loading
-          ? "Investigating Sources..."
-          : "Investigate News"}
-      </button>
+            <div className="flex items-center justify-between mb-6">
+
+              <div>
+
+                <h2 className="text-2xl font-semibold text-white">
+                  Fact-Check Sources
+                </h2>
+
+                <p className="text-sm text-slate-500 mt-1">
+                  Published fact-checks returned by Google
+                </p>
+
+              </div>
+
+              <span className="text-sm text-slate-500">
+                {results.resultCount} sources
+              </span>
+
+            </div>
+
+            <div className="space-y-5">
+
+              {sources.map(
+                (source, index) => (
+
+                  <FactCheckCard
+                    key={
+                      source.url ||
+                      index
+                    }
+                    source={source}
+                  />
+
+                )
+              )}
+
+            </div>
+
+          </div>
+
+        )}
+
+      {/* =====================================================
+          NO RESULTS
+      ===================================================== */}
+
+      {!loading &&
+        !results?.error &&
+        results &&
+        sources.length === 0 && (
+
+          <div className="rounded-3xl border border-slate-800 bg-slate-950/40 p-10 text-center">
+
+            <ShieldCheck className="w-10 h-10 mx-auto mb-4 text-slate-600" />
+
+            <h3 className="text-lg font-semibold text-white">
+              No published fact-checks found
+            </h3>
+
+            <p className="text-sm text-slate-500 mt-2">
+              Google did not return any published fact-check results for this query.
+            </p>
+
+          </div>
+
+        )}
 
     </div>
   );
@@ -599,7 +685,81 @@ function GoogleFactCheckView({
 
 
 // =============================================================
-// GENERIC SOURCE VIEW
+// GOOGLE FACT CHECK CARD
+// =============================================================
+
+function FactCheckCard({
+  source,
+}) {
+  return (
+    <article className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 md:p-6">
+
+      <p className="text-xs uppercase tracking-wider text-cyan-400 font-semibold">
+        {source.publisher ||
+          "Publisher"}
+      </p>
+
+      <h3 className="text-xl font-semibold text-white mt-3">
+        {source.title ||
+          "Published Fact-Check"}
+      </h3>
+
+      {source.factCheckedClaim && (
+        <div className="mt-5">
+
+          <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">
+            Fact-checked claim
+          </p>
+
+          <p className="text-slate-300">
+            {source.factCheckedClaim}
+          </p>
+
+        </div>
+      )}
+
+      {source.rating && (
+        <div className="mt-5">
+
+          <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">
+            Publisher rating
+          </p>
+
+          <p className="text-slate-300">
+            {source.rating}
+          </p>
+
+        </div>
+      )}
+
+      {source.reviewDate && (
+        <p className="text-xs text-slate-500 mt-5">
+          Reviewed:{" "}
+          {formatDate(
+            source.reviewDate
+          )}
+        </p>
+      )}
+
+      {source.url && (
+        <a
+          href={source.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 mt-5 px-4 py-2.5 rounded-xl border border-cyan-500/30 bg-cyan-500/5 text-cyan-400 hover:bg-cyan-500/10 transition-all text-sm font-medium"
+        >
+          Read Full Fact-Check
+          <ExternalLink className="w-4 h-4" />
+        </a>
+      )}
+
+    </article>
+  );
+}
+
+
+// =============================================================
+// OTHER SOURCE VIEW
 // =============================================================
 
 function SourceView({
@@ -609,7 +769,6 @@ function SourceView({
   results,
   loading,
   onSearch,
-  onBack,
 }) {
   const articles =
     results?.articles || [];
@@ -617,9 +776,7 @@ function SourceView({
   return (
     <div className="max-w-[1100px]">
 
-      {/* =====================================================
-          SOURCE HEADER
-      ===================================================== */}
+      {/* SOURCE HEADER */}
 
       <div className="rounded-3xl border border-slate-800 bg-slate-950/40 p-6 md:p-8 mb-6">
 
@@ -641,7 +798,8 @@ function SourceView({
             </h2>
 
             <p className="text-slate-400 mt-2">
-              News coverage from {source.name}
+              News coverage from{" "}
+              {source.name}
             </p>
 
           </div>
@@ -650,9 +808,7 @@ function SourceView({
 
       </div>
 
-      {/* =====================================================
-          SOURCE AVAILABILITY NOTICE
-      ===================================================== */}
+      {/* AVAILABILITY */}
 
       <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 mb-6">
 
@@ -669,26 +825,29 @@ function SourceView({
 
       </div>
 
-      {/* =====================================================
-          SEARCH THIS SOURCE
-      ===================================================== */}
+      {/* SEARCH */}
 
       <div className="rounded-3xl border border-slate-800 bg-slate-950/40 p-6 md:p-8 mb-8">
 
-        <div className="mb-4">
+        <h3 className="text-lg font-semibold text-white">
+          Search this source
+        </h3>
 
-          <h3 className="text-lg font-semibold text-white">
-            Search this source
-          </h3>
-
-          <p className="text-sm text-slate-500 mt-1">
-            Search for a claim, topic, person, event, or keyword.
-          </p>
-
-        </div>
+        <p className="text-sm text-slate-500 mt-1 mb-5">
+          Search for a claim, topic, person, event, or keyword.
+        </p>
 
         <form
-          onSubmit={onSearch}
+          onSubmit={(e) => {
+            e.preventDefault();
+
+            if (
+              query.trim() &&
+              !loading
+            ) {
+              onSearch(e);
+            }
+          }}
           className="flex flex-col sm:flex-row gap-3"
         >
 
@@ -725,9 +884,7 @@ function SourceView({
 
       </div>
 
-      {/* =====================================================
-          RESULTS
-      ===================================================== */}
+      {/* RESULTS */}
 
       <div className="rounded-3xl border border-slate-800 bg-slate-950/40 p-6 md:p-8">
 
@@ -745,7 +902,8 @@ function SourceView({
 
           </div>
 
-          {results?.resultCount !== undefined && (
+          {results?.resultCount !==
+            undefined && (
             <span className="text-sm text-slate-500">
               {results.resultCount} results
             </span>
@@ -753,7 +911,7 @@ function SourceView({
 
         </div>
 
-        {/* Loading */}
+        {/* LOADING */}
 
         {loading && (
           <div className="py-12 text-center">
@@ -762,14 +920,15 @@ function SourceView({
 
               <div className="w-5 h-5 border-2 border-slate-700 border-t-cyan-400 rounded-full animate-spin" />
 
-              Searching {source.name}...
+              Searching{" "}
+              {source.name}...
 
             </div>
 
           </div>
         )}
 
-        {/* Error */}
+        {/* ERROR */}
 
         {!loading &&
           results?.error && (
@@ -778,28 +937,7 @@ function SourceView({
             </div>
           )}
 
-        {/* No results */}
-
-        {!loading &&
-          !results?.error &&
-          results &&
-          articles.length === 0 && (
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-8 text-center">
-
-              <Newspaper className="w-8 h-8 mx-auto mb-3 text-slate-600" />
-
-              <p className="text-slate-300 font-medium">
-                No articles were returned.
-              </p>
-
-              <p className="text-sm text-slate-500 mt-2">
-                Try searching with different keywords or a broader topic.
-              </p>
-
-            </div>
-          )}
-
-        {/* Articles */}
+        {/* ARTICLES */}
 
         {!loading &&
           !results?.error &&
@@ -818,50 +956,38 @@ function SourceView({
                     className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 md:p-6 hover:border-slate-700 transition-all"
                   >
 
-                    <div className="flex flex-col gap-4">
+                    <h4 className="text-lg font-semibold text-white">
+                      {article.title ||
+                        "Untitled article"}
+                    </h4>
 
-                      <div>
-
-                        <h4 className="text-lg font-semibold text-white leading-snug">
-                          {article.title ||
-                            "Untitled article"}
-                        </h4>
-
-                        {article.publishedDate && (
-                          <p className="text-xs text-slate-500 mt-2">
-                            {formatDate(
-                              article.publishedDate
-                            )}
-                          </p>
+                    {article.publishedDate && (
+                      <p className="text-xs text-slate-500 mt-2">
+                        {formatDate(
+                          article.publishedDate
                         )}
+                      </p>
+                    )}
 
-                      </div>
+                    {article.abstract && (
+                      <p className="text-sm text-slate-400 leading-relaxed mt-4">
+                        {article.abstract}
+                      </p>
+                    )}
 
-                      {article.abstract && (
-                        <p className="text-sm text-slate-400 leading-relaxed">
-                          {article.abstract}
-                        </p>
-                      )}
-
-                      {article.url && (
-                        <div>
-
-                          <a
-                            href={
-                              article.url
-                            }
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-cyan-500/30 bg-cyan-500/5 text-cyan-400 hover:bg-cyan-500/10 transition-all text-sm font-medium"
-                          >
-                            Read Article
-                            <ExternalLink className="w-4 h-4" />
-                          </a>
-
-                        </div>
-                      )}
-
-                    </div>
+                    {article.url && (
+                      <a
+                        href={
+                          article.url
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 mt-5 px-4 py-2.5 rounded-xl border border-cyan-500/30 bg-cyan-500/5 text-cyan-400 hover:bg-cyan-500/10 transition-all text-sm font-medium"
+                      >
+                        Read Article
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                    )}
 
                   </article>
 
@@ -872,18 +998,30 @@ function SourceView({
 
           )}
 
+        {/* NO RESULTS */}
+
+        {!loading &&
+          !results?.error &&
+          results &&
+          articles.length === 0 && (
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-8 text-center">
+
+              <Newspaper className="w-8 h-8 mx-auto mb-3 text-slate-600" />
+
+              <p className="text-slate-300 font-medium">
+                No articles were returned.
+              </p>
+
+              <p className="text-sm text-slate-500 mt-2">
+                Try different keywords or a broader topic.
+              </p>
+
+            </div>
+
+          )}
+
       </div>
-
-      {/* =====================================================
-          BACK TO GOOGLE
-      ===================================================== */}
-
-      <button
-        onClick={onBack}
-        className="mt-6 text-sm text-slate-500 hover:text-cyan-400 transition-colors"
-      >
-        ← Back to Google Fact-Check Results
-      </button>
 
     </div>
   );
@@ -891,7 +1029,7 @@ function SourceView({
 
 
 // =============================================================
-// DATE FORMATTER
+// DATE
 // =============================================================
 
 function formatDate(date) {
