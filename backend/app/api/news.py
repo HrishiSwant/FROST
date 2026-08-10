@@ -2,17 +2,16 @@ from fastapi import APIRouter, Request
 
 from app.schemas.news import NewsInput
 from app.services.news.news_service import analyze_news
+
 from app.core.responses import (
     success_response,
     error_response,
 )
 
 from app.core.news_dependencies import (
-    ai_client,
     executor,
     db,
 )
-
 
 router = APIRouter(
     prefix="/api/news",
@@ -31,7 +30,6 @@ async def news_check(
         result = await analyze_news(
             text=data.text,
             url=data.url,
-            ai_client=ai_client,
             executor=executor,
             db=db,
         )
