@@ -338,7 +338,7 @@ async def analyze_news(
     # LOG INVESTIGATION
     # ========================================================
 
-    if db:
+    if db is not None:
 
         try:
 
