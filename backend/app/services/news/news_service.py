@@ -446,7 +446,7 @@ async def analyze_news(
     # SAVE RESULT
     # ========================================================
 
-    if db:
+    if db is not None:
 
         try:
 
