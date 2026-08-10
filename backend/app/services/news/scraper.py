@@ -1,40 +1,121 @@
 import logging
-import requests
-from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 
+import requests
+from bs4 import BeautifulSoup
+
+
+# ============================================================
+# ARTICLE SCRAPER
+# ============================================================
 
 def scrape_article(url: str):
-    try:
-        response = requests.get(url, timeout=5)
+    """
+    Fetch and extract readable text from a public news article.
 
-        soup = BeautifulSoup(response.text, "html.parser")
+    This function collects evidence only.
+    It does NOT determine whether the article is true or false.
+    """
 
-        title = soup.title.get_text() if soup.title else ""
+    if not url:
+        raise ValueError("URL is required")
 
-        text = " ".join(
-            paragraph.get_text()
-            for paragraph in soup.find_all("p")
+    parsed = urlparse(url)
+
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(
+            "Only HTTP and HTTPS URLs are supported"
         )
 
-        return title, text[:3000]
+    if not parsed.netloc:
+        raise ValueError(
+            "Invalid article URL"
+        )
 
-    except Exception as e:
-        logging.error(f"Scrape error: {e}")
+    try:
+
+        response = requests.get(
+            url,
+            timeout=10,
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 "
+                    "(compatible; FROST-News-Intelligence/2.0)"
+                )
+            },
+        )
+
+        response.raise_for_status()
+
+        soup = BeautifulSoup(
+            response.text,
+            "html.parser"
+        )
+
+        # ----------------------------------------------------
+        # Remove elements that are normally not article text
+        # ----------------------------------------------------
+
+        for element in soup(
+            ["script", "style", "noscript", "nav", "footer"]
+        ):
+            element.decompose()
+
+        # ----------------------------------------------------
+        # Title
+        # ----------------------------------------------------
+
+        title = ""
+
+        if soup.title:
+            title = soup.title.get_text(
+                " ",
+                strip=True
+            )
+
+        # ----------------------------------------------------
+        # Article text
+        # ----------------------------------------------------
+
+        paragraphs = []
+
+        for paragraph in soup.find_all("p"):
+
+            text = paragraph.get_text(
+                " ",
+                strip=True
+            )
+
+            if text and len(text) > 20:
+                paragraphs.append(text)
+
+        article_text = " ".join(
+            paragraphs
+        )
+
+        # Keep the amount of scraped content manageable.
+        article_text = article_text[:10000]
+
+        if not title and not article_text:
+
+            raise ValueError(
+                "Could not extract article content"
+            )
+
+        return title, article_text
+
+    except requests.RequestException as e:
+
+        logging.error(
+            f"Article request failed: {e}"
+        )
+
         return "", ""
 
+    except Exception as e:
 
-def is_suspicious_domain(url: str):
-    suspicious_keywords = [
-        "clickbait",
-        "fake",
-        "viral",
-        "rumor",
-    ]
+        logging.error(
+            f"Article scraping failed: {e}"
+        )
 
-    domain = urlparse(url).netloc.lower()
-
-    return any(
-        keyword in domain
-        for keyword in suspicious_keywords
-    )
+        return "", ""
