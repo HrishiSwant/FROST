@@ -5,6 +5,8 @@ import {
   sendEmailVerification,
   signOut,
   updateProfile,
+  GoogleAuthProvider,
+  signInWithPopup,
 } from "firebase/auth";
 
 import { auth } from "../../config/firebase";
@@ -17,11 +19,12 @@ export async function registerUser({
   password,
   displayName,
 }) {
-  const userCredential = await createUserWithEmailAndPassword(
-    auth,
-    email,
-    password
-  );
+  const userCredential =
+    await createUserWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
 
   const user = userCredential.user;
 
@@ -43,11 +46,31 @@ export async function loginUser({
   email,
   password,
 }) {
-  const userCredential = await signInWithEmailAndPassword(
-    auth,
-    email,
-    password
-  );
+  const userCredential =
+    await signInWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
+
+  return userCredential.user;
+}
+
+/**
+ * Sign in with Google.
+ */
+export async function loginWithGoogle() {
+  const provider = new GoogleAuthProvider();
+
+  provider.setCustomParameters({
+    prompt: "select_account",
+  });
+
+  const userCredential =
+    await signInWithPopup(
+      auth,
+      provider
+    );
 
   return userCredential.user;
 }
@@ -59,7 +82,9 @@ export async function resendVerificationEmail() {
   const user = auth.currentUser;
 
   if (!user) {
-    throw new Error("No user is currently signed in.");
+    throw new Error(
+      "No user is currently signed in."
+    );
   }
 
   await sendEmailVerification(user);
@@ -87,7 +112,10 @@ export async function refreshCurrentUser() {
  * Send password reset email.
  */
 export async function resetPassword(email) {
-  await sendPasswordResetEmail(auth, email);
+  await sendPasswordResetEmail(
+    auth,
+    email
+  );
 }
 
 /**
