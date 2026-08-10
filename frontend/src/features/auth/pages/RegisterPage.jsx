@@ -25,7 +25,6 @@ export default function RegisterPage() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -62,16 +61,14 @@ export default function RegisterPage() {
         email: email.trim(),
         password,
         displayName: name.trim(),
-      });
+        });
 
-      setSuccess(
-        "Account created successfully. Please check your email to verify your account."
-      );
-
-      setTimeout(() => {
-        navigate("/dashboard", { replace: true });
-      }, 1500);
-    } catch (error) {
+      localStorage.setItem(
+        "frost_verification_email",
+        email.trim()
+        );
+      navigate("/verify-email", { replace: true });
+      } catch (error) {
       console.error("Registration error:", error);
 
       switch (error?.code) {
