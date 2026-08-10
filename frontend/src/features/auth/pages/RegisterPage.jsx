@@ -32,7 +32,6 @@ export default function RegisterPage() {
     if (loading) return;
 
     setError("");
-    setSuccess("");
 
     if (!name.trim()) {
       setError("Please enter your name.");
@@ -61,14 +60,17 @@ export default function RegisterPage() {
         email: email.trim(),
         password,
         displayName: name.trim(),
-        });
+      });
 
       localStorage.setItem(
         "frost_verification_email",
         email.trim()
-        );
-      navigate("/verify-email", { replace: true });
-      } catch (error) {
+      );
+
+      navigate("/verify-email", {
+        replace: true,
+      });
+    } catch (error) {
       console.error("Registration error:", error);
 
       switch (error?.code) {
@@ -107,6 +109,7 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md">
+
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-400/20 mb-4">
@@ -124,18 +127,14 @@ export default function RegisterPage() {
 
         {/* Card */}
         <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 sm:p-8 shadow-2xl">
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-5"
+          >
             {/* Error */}
             {error && (
               <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
                 {error}
-              </div>
-            )}
-
-            {/* Success */}
-            {success && (
-              <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-300">
-                {success}
               </div>
             )}
 
@@ -320,6 +319,7 @@ export default function RegisterPage() {
             ← Back to FROST
           </Link>
         </div>
+
       </div>
     </div>
   );
