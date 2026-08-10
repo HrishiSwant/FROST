@@ -1,99 +1,83 @@
 import React from "react";
+
 import {
   LayoutDashboard,
   Shield,
   FileText,
   BarChart3,
   Bell,
-  Settings
+  Settings,
+  X,
 } from "lucide-react";
 
 import styles from "./Sidebar.module.css";
 
 const items = [
-
   {
     icon: LayoutDashboard,
-    label: "Dashboard"
+    label: "Dashboard",
   },
-
   {
     icon: Shield,
-    label: "Intelligence"
+    label: "Intelligence",
   },
-
   {
     icon: FileText,
-    label: "Reports"
+    label: "Reports",
   },
-
   {
     icon: BarChart3,
-    label: "Analytics"
+    label: "Analytics",
   },
-
   {
     icon: Bell,
-    label: "Threat Feed"
+    label: "Threat Feed",
   },
-
   {
     icon: Settings,
-    label: "Settings"
-  }
-
+    label: "Settings",
+  },
 ];
 
-export default function Sidebar(){
+export default function Sidebar({ isOpen, onClose }) {
+  return (
+    <aside
+      className={`${styles.sidebar} ${
+        isOpen ? styles.mobileOpen : ""
+      }`}
+    >
+      {/* Header */}
+      <div className={styles.header}>
+        <div className={styles.logo}>FROST</div>
 
-return(
+        <button
+          type="button"
+          className={styles.closeButton}
+          onClick={onClose}
+          aria-label="Close navigation"
+        >
+          <X size={24} />
+        </button>
+      </div>
 
-<aside className={styles.sidebar}>
+      {/* Navigation */}
+      <nav>
+        {items.map((item) => {
+          const Icon = item.icon;
 
-<div className={styles.logo}>
-
-FROST
-
-</div>
-
-<nav>
-
-{
-
-items.map(item=>{
-
-const Icon=item.icon;
-
-return(
-
-<button
-
-key={item.label}
-
-className={styles.link}
-
->
-
-<Icon size={20}/>
-
-<span>
-
-{item.label}
-
-</span>
-
-</button>
-
-)
-
-})
-
-}
-
-</nav>
-
-</aside>
-
-)
-
+          return (
+            <button
+              key={item.label}
+              type="button"
+              className={styles.link}
+              onClick={onClose}
+            >
+              <Icon size={26} strokeWidth={1.8} />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+    </aside>
+  );
 }
