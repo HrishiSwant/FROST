@@ -4,9 +4,6 @@ import {
   ShieldCheck,
   ArrowLeft,
   ExternalLink,
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
 } from "lucide-react";
 
 const API_BASE =
@@ -24,6 +21,7 @@ export default function Fakenews() {
     if (!text.trim() || loading) return;
 
     const userText = text.trim();
+
     setText("");
 
     setMessages((prev) => [
@@ -72,7 +70,9 @@ export default function Fakenews() {
       const result = data?.data;
 
       if (!result) {
-        throw new Error("No investigation result received.");
+        throw new Error(
+          "No fact-check result received."
+        );
       }
 
       setMessages((prev) => [
@@ -83,7 +83,10 @@ export default function Fakenews() {
         },
       ]);
     } catch (error) {
-      console.error("News analysis error:", error);
+      console.error(
+        "News fact-check error:",
+        error
+      );
 
       setMessages((prev) => [
         ...prev,
@@ -97,42 +100,6 @@ export default function Fakenews() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const getVerdictIcon = (verdict = "") => {
-    const value = verdict.toLowerCase();
-
-    if (
-      value.includes("false") ||
-      value.includes("misleading") ||
-      value.includes("suspicious")
-    ) {
-      return <XCircle className="w-5 h-5" />;
-    }
-
-    if (value.includes("true") || value.includes("real")) {
-      return <CheckCircle2 className="w-5 h-5" />;
-    }
-
-    return <AlertTriangle className="w-5 h-5" />;
-  };
-
-  const getVerdictStyle = (verdict = "") => {
-    const value = verdict.toLowerCase();
-
-    if (
-      value.includes("false") ||
-      value.includes("misleading") ||
-      value.includes("suspicious")
-    ) {
-      return "border-red-500/30 bg-red-500/10 text-red-400";
-    }
-
-    if (value.includes("true") || value.includes("real")) {
-      return "border-green-500/30 bg-green-500/10 text-green-400";
-    }
-
-    return "border-yellow-500/30 bg-yellow-500/10 text-yellow-400";
   };
 
   return (
@@ -161,12 +128,12 @@ export default function Fakenews() {
             </h1>
 
             <p className="text-slate-400 mt-1">
-              Deep semantic analysis & fact-checking
+              Published fact-check results from Google
             </p>
           </div>
         </div>
 
-        {/* Investigation Results */}
+        {/* Results */}
         <div className="space-y-5 max-h-[550px] overflow-y-auto mb-8 pr-2">
 
           {/* Empty State */}
@@ -175,15 +142,14 @@ export default function Fakenews() {
               <ShieldCheck className="w-10 h-10 mx-auto mb-4 text-cyan-400" />
 
               <p className="text-slate-300">
-                Paste a news article, claim, or URL below to begin an
-                investigation.
+                Paste a news article, claim, or URL below to find
+                published fact-checks.
               </p>
             </div>
           )}
 
           {/* Messages */}
           {messages.map((msg, index) => (
-
             <div key={index}>
 
               {/* User Message */}
@@ -204,196 +170,117 @@ export default function Fakenews() {
                 </div>
               )}
 
-              {/* V2 Investigation Result */}
+              {/* Fact-Check Sources ONLY */}
               {msg.role === "ai" && msg.result && (
                 <div className="flex justify-start">
 
                   <div className="w-full max-w-[900px] rounded-3xl bg-slate-950 border border-slate-800 p-5 md:p-7">
 
-                    {/* Version */}
-                    <div className="flex items-center justify-between mb-6">
+                    {/* Fact-Check Sources Header */}
+                    <div className="flex items-center justify-between mb-5">
                       <div>
-                        <p className="text-xs uppercase tracking-widest text-cyan-400 font-semibold">
-                          FROST NEWS INTELLIGENCE
-                        </p>
-
-                        <p className="text-xs text-slate-500 mt-1">
-                          Investigation Engine v{msg.result.version || "2"}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Verdict */}
-                    <div
-                      className={`rounded-2xl border p-5 mb-5 ${getVerdictStyle(
-                        msg.result.verdict
-                      )}`}
-                    >
-                      <div className="flex items-center gap-3 mb-2">
-                        {getVerdictIcon(msg.result.verdict)}
-
-                        <span className="text-xs uppercase tracking-wider font-semibold">
-                          Verdict
-                        </span>
-                      </div>
-
-                      <h2 className="text-xl md:text-2xl font-bold">
-                        {msg.result.verdict || "UNKNOWN"}
-                      </h2>
-                    </div>
-
-                    {/* Confidence */}
-                    <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 mb-5">
-
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm text-slate-400">
-                          Confidence
-                        </span>
-
-                        <span className="text-xl font-bold text-white">
-                          {msg.result.confidence ?? 0}%
-                        </span>
-                      </div>
-
-                      <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full transition-all"
-                          style={{
-                            width: `${Math.min(
-                              Math.max(
-                                Number(msg.result.confidence) || 0,
-                                0
-                              ),
-                              100
-                            )}%`,
-                          }}
-                        />
-                      </div>
-
-                    </div>
-
-                    {/* Reason */}
-                    {msg.result.reason && (
-                      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 mb-5">
-
-                        <h3 className="text-sm font-semibold text-white mb-2">
-                          Investigation Reason
+                        <h3 className="text-lg font-semibold text-white">
+                          Fact-Check Sources
                         </h3>
 
-                        <p className="text-sm leading-6 text-slate-300">
-                          {msg.result.reason}
+                        <p className="text-xs text-slate-500 mt-1">
+                          Published fact-checks returned by Google
                         </p>
-
                       </div>
-                    )}
 
-                    {/* Query */}
-                    {msg.result.query && (
-                      <div className="mb-5">
-
-                        <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">
-                          Investigated Claim
-                        </p>
-
-                        <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
-                          <p className="text-sm text-slate-300">
-                            {msg.result.query}
-                          </p>
-                        </div>
-
-                      </div>
-                    )}
+                      <span className="text-xs text-slate-500">
+                        {Array.isArray(msg.result.sources)
+                          ? msg.result.sources.length
+                          : 0}{" "}
+                        source
+                        {Array.isArray(msg.result.sources) &&
+                        msg.result.sources.length !== 1
+                          ? "s"
+                          : ""}
+                      </span>
+                    </div>
 
                     {/* Sources */}
                     {Array.isArray(msg.result.sources) &&
-                      msg.result.sources.length > 0 && (
-                        <div>
+                    msg.result.sources.length > 0 ? (
+                      <div className="space-y-3">
 
-                          <div className="flex items-center justify-between mb-4">
-                            <div>
-                              <h3 className="text-lg font-semibold text-white">
-                                Fact-Check Sources
-                              </h3>
+                        {msg.result.sources.map(
+                          (source, sourceIndex) => (
+                            <div
+                              key={sourceIndex}
+                              className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5"
+                            >
 
-                              <p className="text-xs text-slate-500 mt-1">
-                                External sources used during the investigation
+                              {/* Publisher */}
+                              <p className="text-xs uppercase tracking-wider text-cyan-400 font-semibold mb-2">
+                                {source.publisher ||
+                                  "Fact-Check Publisher"}
                               </p>
-                            </div>
 
-                            <span className="text-xs text-slate-500">
-                              {msg.result.sources.length} source
-                              {msg.result.sources.length !== 1
-                                ? "s"
-                                : ""}
-                            </span>
-                          </div>
+                              {/* Title */}
+                              <h4 className="text-sm md:text-base font-semibold text-white mb-3">
+                                {source.title ||
+                                  "Fact-check source"}
+                              </h4>
 
-                          <div className="space-y-3">
+                              {/* Fact Checked Claim */}
+                              {source.factCheckedClaim && (
+                                <div className="mb-4">
+                                  <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">
+                                    Fact-checked claim
+                                  </p>
 
-                            {msg.result.sources.map((source, sourceIndex) => (
-                              <div
-                                key={sourceIndex}
-                                className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5"
-                              >
-
-                                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-
-                                  <div className="flex-1">
-
-                                    <p className="text-xs uppercase tracking-wider text-cyan-400 font-semibold mb-1">
-                                      {source.publisher ||
-                                        "Fact-Check Publisher"}
-                                    </p>
-
-                                    <h4 className="text-sm md:text-base font-semibold text-white mb-2">
-                                      {source.title ||
-                                        "Fact-check source"}
-                                    </h4>
-
-                                    {source.rating && (
-                                      <p className="text-sm text-slate-400 leading-6">
-                                        {source.rating}
-                                      </p>
-                                    )}
-
-                                    {source.reviewDate && (
-                                      <p className="text-xs text-slate-500 mt-3">
-                                        Reviewed:{" "}
-                                        {source.reviewDate}
-                                      </p>
-                                    )}
-
-                                  </div>
-
-                                  {source.url && (
-                                    <a
-                                      href={source.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-sm font-medium hover:bg-cyan-500/20 transition-colors shrink-0"
-                                    >
-                                      View Source
-                                      <ExternalLink className="w-4 h-4" />
-                                    </a>
-                                  )}
-
+                                  <p className="text-sm text-slate-300 leading-6">
+                                    {source.factCheckedClaim}
+                                  </p>
                                 </div>
+                              )}
 
-                              </div>
-                            ))}
+                              {/* Publisher Rating */}
+                              {source.rating && (
+                                <div className="mb-4">
+                                  <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">
+                                    Publisher rating
+                                  </p>
 
-                          </div>
+                                  <p className="text-sm text-slate-300 leading-6">
+                                    {source.rating}
+                                  </p>
+                                </div>
+                              )}
 
-                        </div>
-                      )}
+                              {/* Review Date */}
+                              {source.reviewDate && (
+                                <p className="text-xs text-slate-500 mb-4">
+                                  Reviewed:{" "}
+                                  {source.reviewDate}
+                                </p>
+                              )}
 
-                    {/* No Sources */}
-                    {(!Array.isArray(msg.result.sources) ||
-                      msg.result.sources.length === 0) && (
+                              {/* Source Button */}
+                              {source.url && (
+                                <a
+                                  href={source.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-sm font-medium hover:bg-cyan-500/20 transition-colors"
+                                >
+                                  Read Full Fact-Check
+                                  <ExternalLink className="w-4 h-4" />
+                                </a>
+                              )}
+
+                            </div>
+                          )
+                        )}
+
+                      </div>
+                    ) : (
                       <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-4">
                         <p className="text-sm text-yellow-400">
-                          No external fact-check sources were returned for
-                          this investigation.
+                          No published fact-check sources were
+                          found for this search.
                         </p>
                       </div>
                     )}
@@ -404,14 +291,13 @@ export default function Fakenews() {
               )}
 
             </div>
-
           ))}
 
           {/* Loading */}
           {loading && (
             <div className="flex justify-start">
               <div className="p-4 rounded-2xl bg-slate-900 text-slate-400 border border-slate-800">
-                FROST is investigating fact-check sources...
+                Searching published fact-checks...
               </div>
             </div>
           )}
@@ -439,8 +325,8 @@ export default function Fakenews() {
           className="w-full py-5 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-2xl font-semibold text-lg text-white hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
         >
           {loading
-            ? "Investigating Sources..."
-            : "Investigate News"}
+            ? "Searching Fact-Checks..."
+            : "Find Fact-Checks"}
         </button>
 
       </div>
