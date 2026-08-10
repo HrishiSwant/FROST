@@ -32,13 +32,30 @@ export default function LoginPage() {
     try {
       setLoading(true);
 
-      await loginUser({
+      const user = await loginUser({
         email: email.trim(),
         password,
-      });
+        });
+
+      const isPasswordAccount =
+        user?.providerData?.some(
+          (provider) =>
+            provider.providerId === "password"
+          );
+      if (isPasswordAccount && !user.emailVerified) {
+        localStorage.setItem(
+          "frost_verification_email",
+          user.email
+          );
+        navigate("/verify-email", {
+          replace: true,
+          });
+
+        return;
+        }
 
       navigate(redirectPath, { replace: true });
-    } catch (error) {
+      } catch (error) {
       console.error("Login error:", error);
 
       switch (error?.code) {
