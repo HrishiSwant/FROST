@@ -1,50 +1,52 @@
 import React from "react";
+
 import {
-
-Search,
-
-Bell,
-
-Moon,
-
-User
-
-}
-
-from "lucide-react";
+  Search,
+  Bell,
+  Moon,
+  User,
+  Menu,
+} from "lucide-react";
 
 import styles from "./Topbar.module.css";
 
-export default function Topbar(){
+export default function Topbar({ onMenuClick }) {
+  return (
+    <header className={styles.topbar}>
+      {/* Mobile menu */}
+      <button
+        type="button"
+        className={styles.menuButton}
+        onClick={onMenuClick}
+        aria-label="Open navigation"
+      >
+        <Menu size={24} />
+      </button>
 
-return(
+      {/* Search */}
+      <div className={styles.search}>
+        <Search size={18} />
 
-<header className={styles.topbar}>
+        <input
+          placeholder="Search reports, scans..."
+          aria-label="Search reports and scans"
+        />
+      </div>
 
-<div className={styles.search}>
+      {/* Actions */}
+      <div className={styles.actions}>
+        <button type="button" aria-label="Notifications">
+          <Bell />
+        </button>
 
-<Search size={18}/>
+        <button type="button" aria-label="Toggle theme">
+          <Moon />
+        </button>
 
-<input
-
-placeholder="Search reports, scans..."
-
- />
-
-</div>
-
-<div className={styles.actions}>
-
-<Bell/>
-
-<Moon/>
-
-<User/>
-
-</div>
-
-</header>
-
-)
-
+        <button type="button" aria-label="Profile">
+          <User />
+        </button>
+      </div>
+    </header>
+  );
 }
