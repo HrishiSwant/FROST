@@ -4,7 +4,11 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
 export default function ProtectedRoute() {
-  const { user, authLoading } = useAuth();
+  const {
+    user,
+    authLoading,
+  } = useAuth();
+
   const location = useLocation();
 
   if (authLoading) {
@@ -30,7 +34,32 @@ export default function ProtectedRoute() {
       <Navigate
         to="/login"
         replace
-        state={{ from: location.pathname }}
+        state={{
+          from: location.pathname,
+        }}
+      />
+    );
+  }
+
+  const isPasswordAccount =
+    user.providerData?.some(
+      (provider) =>
+        provider.providerId === "password"
+    );
+
+  if (
+    isPasswordAccount &&
+    !user.emailVerified
+  ) {
+    localStorage.setItem(
+      "frost_verification_email",
+      user.email || ""
+    );
+
+    return (
+      <Navigate
+        to="/verify-email"
+        replace
       />
     );
   }
