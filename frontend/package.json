@@ -7,6 +7,7 @@
     "@clerk/clerk-react": "^5.4.0",
     "@splinetool/react-spline": "^4.1.0",
     "@tailwindcss/vite": "^4.3.3",
+    "firebase": "^12.17.1",
     "lucide-react": "^0.555.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
