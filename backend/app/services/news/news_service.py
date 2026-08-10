@@ -1,92 +1,351 @@
 import asyncio
 import logging
+import os
+import re
+
+import requests
 
 
-GEMINI_MODEL = "gemini-3.6-flash"
+FACTCHECK_API_URL = (
+    "https://factchecktools.googleapis.com/v1alpha1/claims:search"
+)
 
 
-async def generate_news_analysis(
-    ai_client,
-    prompt: str,
-):
-    if ai_client is None:
-        raise RuntimeError(
-            "Gemini AI service is not configured"
+# ============================================================
+# TEXT EXTRACTION
+# ============================================================
+
+def extract_search_query(text: str) -> str:
+    """
+    Prepare user-provided news text for evidence searching.
+
+    For now we use the first meaningful portion of the text.
+    The V2 system will later extract individual claims.
+    """
+
+    cleaned = re.sub(r"\s+", " ", text).strip()
+
+    if len(cleaned) > 500:
+        cleaned = cleaned[:500]
+
+    return cleaned
+
+
+# ============================================================
+# FACT CHECK SEARCH
+# ============================================================
+
+def search_fact_checks(query: str):
+    """
+    Search Google's Fact Check Claim Search API.
+
+    Returns previously published fact-check evidence.
+    """
+
+    api_key = os.getenv("FACTCHECK_API_KEY")
+
+    if not api_key:
+        logging.warning(
+            "FACTCHECK_API_KEY not configured"
         )
+
+        return []
 
     try:
 
-        response = await ai_client.aio.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=prompt,
+        response = requests.get(
+            FACTCHECK_API_URL,
+            params={
+                "query": query,
+                "languageCode": "en",
+                "pageSize": 10,
+                "key": api_key,
+            },
+            timeout=10,
         )
 
-        return response.text
+        response.raise_for_status()
+
+        data = response.json()
+
+        claims = data.get("claims", [])
+
+        results = []
+
+        for claim in claims:
+
+            reviews = claim.get(
+                "claimReview",
+                []
+            )
+
+            for review in reviews:
+
+                publisher = review.get(
+                    "publisher",
+                    {}
+                )
+
+                results.append({
+                    "claim": claim.get(
+                        "text"
+                    ),
+
+                    "claimant": claim.get(
+                        "claimant"
+                    ),
+
+                    "claim_date": claim.get(
+                        "claimDate"
+                    ),
+
+                    "publisher": publisher.get(
+                        "name"
+                    ),
+
+                    "publisher_site": publisher.get(
+                        "site"
+                    ),
+
+                    "review_title": review.get(
+                        "title"
+                    ),
+
+                    "rating": review.get(
+                        "textualRating"
+                    ),
+
+                    "review_date": review.get(
+                        "reviewDate"
+                    ),
+
+                    "url": review.get(
+                        "url"
+                    ),
+                })
+
+        return results
+
+    except requests.RequestException as e:
+
+        logging.error(
+            f"Fact Check API request failed: {e}"
+        )
+
+        return []
 
     except Exception as e:
 
         logging.error(
-            f"Gemini request failed: {e}"
+            f"Fact Check processing failed: {e}"
         )
 
-        raise
+        return []
 
+
+# ============================================================
+# ARTICLE SCRAPING
+# ============================================================
+
+def scrape_article_sync(url: str):
+    """
+    Scrape a public article URL.
+
+    This is evidence collection only.
+    It does NOT determine whether the article is true.
+    """
+
+    from app.services.news.scraper import (
+        scrape_article,
+    )
+
+    title, article = scrape_article(url)
+
+    return {
+        "title": title,
+        "content": article,
+        "url": url,
+    }
+
+
+# ============================================================
+# EVIDENCE ANALYSIS
+# ============================================================
+
+def build_verdict(fact_checks):
+    """
+    Determine an evidence-based preliminary verdict.
+
+    This does NOT claim absolute truth.
+    """
+
+    if not fact_checks:
+
+        return {
+            "verdict": "UNVERIFIED",
+            "confidence": 0,
+            "reason": (
+                "No matching published fact-check "
+                "was found in the current evidence source."
+            ),
+        }
+
+    ratings = []
+
+    for item in fact_checks:
+
+        rating = (
+            item.get("rating") or ""
+        ).lower()
+
+        ratings.append(rating)
+
+    false_keywords = [
+        "false",
+        "mostly false",
+        "pants on fire",
+        "fake",
+        "incorrect",
+        "misleading",
+    ]
+
+    true_keywords = [
+        "true",
+        "mostly true",
+        "correct",
+        "accurate",
+    ]
+
+    false_matches = 0
+    true_matches = 0
+
+    for rating in ratings:
+
+        if any(
+            keyword in rating
+            for keyword in false_keywords
+        ):
+            false_matches += 1
+
+        elif any(
+            keyword in rating
+            for keyword in true_keywords
+        ):
+            true_matches += 1
+
+    if false_matches > true_matches:
+
+        return {
+            "verdict": "LIKELY FALSE / MISLEADING",
+            "confidence": min(
+                50 + false_matches * 10,
+                95
+            ),
+            "reason": (
+                "Existing fact-check sources contain "
+                "ratings indicating that matching claims "
+                "were false or misleading."
+            ),
+        }
+
+    if true_matches > false_matches:
+
+        return {
+            "verdict": "SUPPORTED",
+            "confidence": min(
+                50 + true_matches * 10,
+                95
+            ),
+            "reason": (
+                "Existing fact-check sources contain "
+                "ratings supporting matching claims."
+            ),
+        }
+
+    return {
+        "verdict": "CONFLICTING EVIDENCE",
+        "confidence": 50,
+        "reason": (
+            "Available fact-check sources contain "
+            "different assessments."
+        ),
+    }
+
+
+# ============================================================
+# MAIN NEWS INTELLIGENCE V2
+# ============================================================
 
 async def analyze_news(
     text=None,
     url=None,
-    ai_client=None,
     executor=None,
     db=None,
 ):
-    from app.services.news.scraper import (
-        scrape_article,
-        is_suspicious_domain,
-    )
 
     if not text and not url:
+
         raise ValueError(
-            "Provide text or URL"
+            "Provide news text or URL"
         )
 
-    loop = asyncio.get_event_loop()
+    # ========================================================
+    # COLLECT INPUT
+    # ========================================================
 
-    # ================= URL HANDLING =================
+    article = None
 
-    if not text and url:
+    if url:
 
-        if is_suspicious_domain(url):
+        if executor:
 
-            return {
-                "answer": (
-                    "This source appears suspicious.\n\n"
-                    "The domain is commonly associated "
-                    "with misleading content."
-                )
-            }
+            loop = asyncio.get_running_loop()
 
-        title, article = await loop.run_in_executor(
-            executor,
-            scrape_article,
-            url,
-        )
+            article = await loop.run_in_executor(
+                executor,
+                scrape_article_sync,
+                url,
+            )
 
-        text = f"{title} {article}"
+        else:
+
+            article = scrape_article_sync(
+                url
+            )
+
+        if article.get("content"):
+
+            text = (
+                f"{article.get('title', '')} "
+                f"{article.get('content', '')}"
+            )
+
+        elif not text:
+
+            raise ValueError(
+                "Could not extract article content"
+            )
 
     if not text:
+
         raise ValueError(
-            "No content could be analyzed"
+            "No news content available for analysis"
         )
 
-    # ================= DATABASE LOG =================
+    text = text.strip()
+
+    # ========================================================
+    # LOG INVESTIGATION
+    # ========================================================
 
     if db:
 
         try:
 
             db.logs.insert_one({
-                "type": "news_check",
+                "type": "news_investigation_v2",
                 "input": text,
+                "url": url,
             })
 
         except Exception as e:
@@ -95,105 +354,113 @@ async def analyze_news(
                 f"MongoDB logging failed: {e}"
             )
 
-    # ================= PRIMARY AI ANALYSIS =================
+    # ========================================================
+    # SEARCH EXISTING FACT CHECKS
+    # ========================================================
 
-    prompt = f"""
-You are FROST AI (Fake Resistance & Online Security Tech).
+    search_query = extract_search_query(
+        text
+    )
 
-Analyze the following news content.
+    loop = asyncio.get_running_loop()
 
-Your task:
+    fact_checks = await loop.run_in_executor(
+        executor,
+        search_fact_checks,
+        search_query,
+    ) if executor else search_fact_checks(
+        search_query
+    )
 
-1. Determine whether the content appears REAL,
-   FAKE, or SUSPICIOUS.
+    # ========================================================
+    # BUILD VERDICT
+    # ========================================================
 
-2. Explain the reasoning clearly.
+    verdict = build_verdict(
+        fact_checks
+    )
 
-3. Give a confidence score from 0 to 100.
+    # ========================================================
+    # BUILD SOURCE LIST
+    # ========================================================
 
-4. Identify potentially misleading claims,
-   sensational language, or suspicious patterns.
+    sources = []
 
-5. Do not claim that something is definitely true
-   unless the provided information supports that conclusion.
+    for item in fact_checks:
 
-Return a clear, human-readable analysis.
+        sources.append({
+            "publisher": item.get(
+                "publisher"
+            ),
 
-News content:
+            "title": item.get(
+                "review_title"
+            ),
 
-{text}
-"""
+            "rating": item.get(
+                "rating"
+            ),
 
-    try:
+            "reviewDate": item.get(
+                "review_date"
+            ),
 
-        answer = await generate_news_analysis(
-            ai_client,
-            prompt,
-        )
+            "url": item.get(
+                "url"
+            ),
+        })
 
-        # ================= DATABASE LOG =================
+    # ========================================================
+    # RESULT
+    # ========================================================
 
-        if db:
+    result = {
 
-            try:
+        "version": "2",
 
-                db.logs.insert_one({
-                    "type": "news_check",
-                    "input": text,
-                    "response": answer,
-                })
+        "verdict": verdict[
+            "verdict"
+        ],
 
-            except Exception as e:
+        "confidence": verdict[
+            "confidence"
+        ],
 
-                logging.warning(
-                    f"MongoDB response logging failed: {e}"
-                )
+        "reason": verdict[
+            "reason"
+        ],
 
-        return {
-            "answer": answer,
-        }
+        "query": search_query,
 
-    except Exception as e:
+        "sources": sources,
 
-        logging.error(
-            f"Primary Gemini analysis failed: {e}"
-        )
+        "sourceCount": len(
+            sources
+        ),
 
-        # ================= FALLBACK =================
+        "article": article,
 
-        fallback_prompt = f"""
-You are FROST AI.
+    }
 
-Analyze this user-provided news content
-conversationally.
+    # ========================================================
+    # SAVE RESULT
+    # ========================================================
 
-Explain whether the content appears reliable,
-misleading, suspicious, or potentially false.
-
-Do not invent facts.
-
-Content:
-
-{text}
-"""
+    if db:
 
         try:
 
-            answer = await generate_news_analysis(
-                ai_client,
-                fallback_prompt,
+            db.logs.insert_one({
+                "type": "news_investigation_v2_result",
+                "input": text,
+                "url": url,
+                "result": result,
+            })
+
+        except Exception as e:
+
+            logging.warning(
+                f"MongoDB result logging failed: {e}"
             )
 
-            return {
-                "answer": answer,
-            }
-
-        except Exception as fallback_error:
-
-            logging.error(
-                f"Gemini fallback failed: {fallback_error}"
-            )
-
-            raise RuntimeError(
-                "AI service temporarily unavailable"
-            )
+    return result
