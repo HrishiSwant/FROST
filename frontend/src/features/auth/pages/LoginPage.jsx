@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
+
 import {
   ShieldCheck,
   Mail,
@@ -8,7 +13,10 @@ import {
   EyeOff,
 } from "lucide-react";
 
-import { loginUser } from "../../../services/auth/authService";
+import {
+  loginUser,
+  loginWithGoogle,
+} from "../../../services/auth/authService";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -17,13 +25,20 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] =
+    useState(false);
+
+  const [loading, setLoading] =
+    useState(false);
+
   const [error, setError] = useState("");
 
   const redirectPath =
     location.state?.from || "/dashboard";
 
+  /*
+   * Email / Password Login
+   */
   const handleSubmit = async (event) => {
     event.preventDefault();
 
@@ -46,6 +61,10 @@ export default function LoginPage() {
         password,
       });
 
+      /*
+       * Only email/password accounts
+       * require email verification.
+       */
       const isPasswordAccount =
         user?.providerData?.some(
           (provider) =>
@@ -76,13 +95,18 @@ export default function LoginPage() {
         replace: true,
       });
     } catch (error) {
-      console.error("Login error:", error);
+      console.error(
+        "Login error:",
+        error
+      );
 
       switch (error?.code) {
         case "auth/invalid-credential":
         case "auth/wrong-password":
         case "auth/user-not-found":
-          setError("Invalid email or password.");
+          setError(
+            "Invalid email or password."
+          );
           break;
 
         case "auth/invalid-email":
@@ -106,6 +130,81 @@ export default function LoginPage() {
         default:
           setError(
             "Unable to sign in right now. Please try again."
+          );
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /*
+   * Google Login
+   */
+  const handleGoogleLogin = async () => {
+    if (loading) return;
+
+    try {
+      setLoading(true);
+      setError("");
+
+      const user = await loginWithGoogle();
+
+      /*
+       * Google accounts are already
+       * authenticated by Google.
+       */
+      localStorage.removeItem(
+        "frost_verification_email"
+      );
+
+      console.log(
+        "Google user:",
+        user
+      );
+
+      navigate(redirectPath, {
+        replace: true,
+      });
+    } catch (error) {
+      console.error(
+        "Google login error:",
+        error
+      );
+
+      switch (error?.code) {
+        case "auth/popup-closed-by-user":
+          setError(
+            "Google sign-in was cancelled."
+          );
+          break;
+
+        case "auth/popup-blocked":
+          setError(
+            "Your browser blocked the Google sign-in popup. Please allow popups for FROST and try again."
+          );
+          break;
+
+        case "auth/cancelled-popup-request":
+          setError(
+            "Another Google sign-in request is already in progress."
+          );
+          break;
+
+        case "auth/account-exists-with-different-credential":
+          setError(
+            "An account already exists with this email using another sign-in method."
+          );
+          break;
+
+        case "auth/network-request-failed":
+          setError(
+            "Network error. Please check your internet connection."
+          );
+          break;
+
+        default:
+          setError(
+            "Unable to sign in with Google. Please try again."
           );
       }
     } finally {
@@ -139,6 +238,7 @@ export default function LoginPage() {
             onSubmit={handleSubmit}
             className="space-y-5"
           >
+
             {/* Error */}
             {error && (
               <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
@@ -163,7 +263,9 @@ export default function LoginPage() {
                   type="email"
                   value={email}
                   onChange={(event) =>
-                    setEmail(event.target.value)
+                    setEmail(
+                      event.target.value
+                    )
                   }
                   placeholder="you@example.com"
                   autoComplete="email"
@@ -185,7 +287,9 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() =>
-                    navigate("/forgot-password")
+                    navigate(
+                      "/forgot-password"
+                    )
                   }
                   className="text-sm text-cyan-400 hover:text-cyan-300 transition"
                 >
@@ -205,7 +309,9 @@ export default function LoginPage() {
                   }
                   value={password}
                   onChange={(event) =>
-                    setPassword(event.target.value)
+                    setPassword(
+                      event.target.value
+                    )
                   }
                   placeholder="Enter your password"
                   autoComplete="current-password"
@@ -235,7 +341,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Login */}
+            {/* Email / Password Login */}
             <button
               type="submit"
               disabled={loading}
@@ -246,6 +352,35 @@ export default function LoginPage() {
                 : "Sign in"}
             </button>
           </form>
+
+          {/* Divider */}
+          <div className="my-6 flex items-center gap-3">
+            <div className="h-px flex-1 bg-slate-800" />
+
+            <span className="text-xs uppercase tracking-wider text-slate-500">
+              OR
+            </span>
+
+            <div className="h-px flex-1 bg-slate-800" />
+          </div>
+
+          {/* Google Login */}
+          <button
+            type="button"
+            onClick={handleGoogleLogin}
+            disabled={loading}
+            className="w-full rounded-xl border border-slate-700 bg-slate-950/50 py-3.5 font-medium text-slate-200 transition hover:border-cyan-400 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <span className="inline-flex items-center justify-center gap-3">
+              <span className="text-lg font-semibold">
+                G
+              </span>
+
+              {loading
+                ? "Signing in..."
+                : "Continue with Google"}
+            </span>
+          </button>
 
           {/* Register */}
           <div className="mt-7 text-center text-sm text-slate-400">
