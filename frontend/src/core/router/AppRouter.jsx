@@ -18,7 +18,7 @@ import PhoneIntelligencePage from "../../features/phone-intelligence/pages/Phone
 
 import LoginPage from "../../features/auth/pages/LoginPage";
 import RegisterPage from "../../features/auth/pages/RegisterPage";
-
+import EmailVerificationPage from "../../features/auth/pages/EmailVerificationPage";
 import ProtectedRoute from "../../components/auth/ProtectedRoute";
 
 export default function AppRouter() {
@@ -35,6 +35,8 @@ export default function AppRouter() {
         <Route path="/login" element={<LoginPage />} />
 
         <Route path="/register" element={<RegisterPage />} />
+
+        <Route path="/verify-email" element={<EmailVerificationPage />} />
 
 
         {/* ================= PROTECTED ================= */}
