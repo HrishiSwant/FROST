@@ -1,67 +1,140 @@
-.sidebar{
+.sidebar {
+  width: 260px;
+  min-width: 260px;
+  height: 100vh;
 
-width:260px;
+  background: #08111f;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
 
-height:100vh;
+  display: flex;
+  flex-direction: column;
 
-background:#08111f;
+  padding: 30px 20px;
 
-border-right:1px solid rgba(255,255,255,.05);
+  overflow-y: auto;
+  overflow-x: hidden;
 
-display:flex;
+  z-index: 100;
 
-flex-direction:column;
-
-padding:30px 20px;
-
+  transition:
+    transform 0.3s ease,
+    width 0.3s ease;
 }
 
-.logo{
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 
-font-size:28px;
-
-font-weight:700;
-
-margin-bottom:40px;
-
-color:var(--color-primary);
-
+  margin-bottom: 40px;
 }
 
-nav{
-
-display:flex;
-
-flex-direction:column;
-
-gap:12px;
-
+.logo {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-primary);
 }
 
-.link{
+.closeButton {
+  display: none;
 
-display:flex;
+  align-items: center;
+  justify-content: center;
 
-align-items:center;
+  width: 40px;
+  height: 40px;
 
-gap:14px;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
 
-padding:14px;
+  background: transparent;
+  color: white;
 
-background:none;
-
-border-radius:14px;
-
-color:var(--text-secondary);
-
-transition:.25s;
-
+  cursor: pointer;
 }
 
-.link:hover{
+.sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 
-background:rgba(255,255,255,.04);
+.link {
+  width: 100%;
 
-color:white;
+  display: flex;
+  align-items: center;
+  gap: 14px;
 
+  padding: 14px;
+
+  border: none;
+  border-radius: 14px;
+
+  background: none;
+
+  color: var(--text-secondary);
+
+  font-size: 18px;
+  text-align: left;
+
+  cursor: pointer;
+
+  transition:
+    background 0.25s,
+    color 0.25s,
+    transform 0.2s;
+}
+
+.link:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: white;
+}
+
+.link:active {
+  transform: scale(0.98);
+}
+
+/* =========================
+   MOBILE SIDEBAR
+   ========================= */
+
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+
+    width: min(280px, 82vw);
+    min-width: 0;
+    height: 100dvh;
+
+    padding: 24px 18px;
+
+    transform: translateX(-100%);
+
+    box-shadow: 12px 0 35px rgba(0, 0, 0, 0.35);
+  }
+
+  .sidebar.mobileOpen {
+    transform: translateX(0);
+  }
+
+  .closeButton {
+    display: flex;
+  }
+
+  .header {
+    margin-bottom: 30px;
+  }
+
+  .logo {
+    font-size: 26px;
+  }
+
+  .link {
+    padding: 13px;
+    font-size: 16px;
+  }
 }
