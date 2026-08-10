@@ -1,32 +1,38 @@
-import React from "react";
+import React, { useState } from "react";
+
 import Sidebar from "../Sidebar/Sidebar";
 import Topbar from "../Topbar/Topbar";
 import Content from "../Content/Content";
 
 import styles from "./AppShell.module.css";
 
-export default function AppShell({children}){
+export default function AppShell({ children }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-return(
+  return (
+    <div className={styles.shell}>
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <button
+          type="button"
+          className={styles.overlay}
+          aria-label="Close navigation"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
-<div className={styles.shell}>
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
-<Sidebar/>
+      <div className={styles.main}>
+        <Topbar onMenuClick={() => setSidebarOpen(true)} />
 
-<div className={styles.main}>
-
-<Topbar/>
-
-<Content>
-
-{children}
-
-</Content>
-
-</div>
-
-</div>
-
-)
-
+        <Content>
+          {children}
+        </Content>
+      </div>
+    </div>
+  );
 }
