@@ -6,6 +6,10 @@ from difflib import SequenceMatcher
 
 import requests
 
+from app.services.news.claim_relationship import (
+    classify_relationship,
+)
+
 
 FACTCHECK_API_URL = (
     "https://factchecktools.googleapis.com/v1alpha1/claims:search"
@@ -251,36 +255,65 @@ def calculate_claim_match(
     fact_claim: str,
 ):
     """
-    Determine how closely the user's claim matches the
-    claim that was actually fact-checked.
+    V2.1 claim relationship analysis.
 
-    This is deliberately conservative.
+    Determines not only whether two claims are similar,
+    but how they relate to each other.
 
-    A related topic is NOT automatically considered the
-    same claim.
+    Possible relationships:
+
+    EXACT
+    SUPPORTS
+    CONTRADICTS
+    POSSIBLY_SUPPORTS
+    RELATED
+    UNRELATED
     """
 
-    if not user_claim or not fact_claim:
-
-        return {
-            "score": 0,
-            "match": "NO_MATCH",
-        }
-
-    user_normalized = normalize_claim(
-        user_claim
+    relationship = classify_relationship(
+        user_claim,
+        fact_claim,
     )
 
-    fact_normalized = normalize_claim(
-        fact_claim
+    relation = relationship.get(
+        "relationship",
+        "UNRELATED",
     )
 
-    if not user_normalized or not fact_normalized:
+    score = relationship.get(
+        "score",
+        0,
+    )
 
-        return {
-            "score": 0,
-            "match": "NO_MATCH",
-        }
+    # --------------------------------------------------------
+    # Convert V2.1 relationship into the existing V2
+    # matchType structure so the rest of the API remains
+    # compatible.
+    # --------------------------------------------------------
+
+    if relation == "EXACT":
+        match_type = "EXACT"
+
+    elif relation in {
+        "SUPPORTS",
+        "CONTRADICTS",
+    }:
+        match_type = "STRONG"
+
+    elif relation == "POSSIBLY_SUPPORTS":
+        match_type = "POSSIBLE"
+
+    else:
+        match_type = "NO_MATCH"
+
+    return {
+        "score": score,
+        "match": match_type,
+        "relationship": relation,
+        "relationshipReason": relationship.get(
+            "reason"
+        ),
+    }
 
     # --------------------------------------------------------
     # EXACT MATCH
@@ -378,13 +411,23 @@ def rank_fact_checks(
     fact_checks,
 ):
     """
-    Rank fact-check results by actual claim similarity.
+    Rank fact-check results using the V2.1
+    claim relationship engine.
 
-    Only results with meaningful claim similarity are
-    allowed to influence the final verdict.
+    Relationship quality is more important than
+    raw text similarity.
     """
 
     ranked = []
+
+    relationship_priority = {
+        "EXACT": 5,
+        "CONTRADICTS": 4,
+        "SUPPORTS": 4,
+        "POSSIBLY_SUPPORTS": 3,
+        "RELATED": 2,
+        "UNRELATED": 1,
+    }
 
     for item in fact_checks:
 
@@ -399,8 +442,25 @@ def rank_fact_checks(
 
         enriched = {
             **item,
-            "matchScore": match["score"],
-            "matchType": match["match"],
+
+            "matchScore": match.get(
+                "score",
+                0,
+            ),
+
+            "matchType": match.get(
+                "match",
+                "NO_MATCH",
+            ),
+
+            "relationship": match.get(
+                "relationship",
+                "UNRELATED",
+            ),
+
+            "relationshipReason": match.get(
+                "relationshipReason"
+            ),
         }
 
         ranked.append(
@@ -408,15 +468,23 @@ def rank_fact_checks(
         )
 
     ranked.sort(
-        key=lambda item: item.get(
-            "matchScore",
-            0
+        key=lambda item: (
+            relationship_priority.get(
+                item.get(
+                    "relationship",
+                    "UNRELATED",
+                ),
+                0,
+            ),
+            item.get(
+                "matchScore",
+                0,
+            ),
         ),
         reverse=True,
     )
 
     return ranked
-
 
 # ============================================================
 # RATING INTERPRETATION
@@ -506,13 +574,14 @@ def build_verdict(
     fact_checks,
 ):
     """
-    Build an evidence-based preliminary verdict.
+    V2.1 evidence-based verdict engine.
 
-    IMPORTANT:
+    Important:
+    Related claims do NOT determine the verdict.
 
-    A fact-check rating is only considered when the
-    fact-checked claim itself strongly matches the
-    user's claim.
+    Only claims with a meaningful relationship
+    to the user's claim are allowed to influence
+    the result.
     """
 
     ranked = rank_fact_checks(
@@ -520,18 +589,248 @@ def build_verdict(
         fact_checks,
     )
 
+    # ========================================================
+    # EXACT / STRONG RELATIONSHIPS
+    # ========================================================
+
     strong_matches = [
         item
         for item in ranked
-        if item.get("matchType") == "STRONG"
+        if item.get("relationship")
+        in {
+            "EXACT",
+            "CONTRADICTS",
+            "SUPPORTS",
+        }
     ]
+
+    # ========================================================
+    # POSSIBLE RELATIONSHIPS
+    # ========================================================
 
     possible_matches = [
         item
         for item in ranked
-        if item.get("matchType") == "POSSIBLE"
+        if item.get("relationship")
+        == "POSSIBLY_SUPPORTS"
     ]
 
+    # ========================================================
+    # NO STRONG EVIDENCE
+    # ========================================================
+
+    if not strong_matches:
+
+        if possible_matches:
+
+            return {
+                "verdict": "NEEDS VERIFICATION",
+                "confidence": 35,
+                "reason": (
+                    "Related fact-check evidence was found, "
+                    "but it does not establish a sufficiently "
+                    "strong relationship with the exact claim."
+                ),
+                "matchedEvidence": None,
+                "rankedEvidence": ranked,
+            }
+
+        return {
+            "verdict": "UNVERIFIED",
+            "confidence": 0,
+            "reason": (
+                "No sufficiently matching published "
+                "fact-check was found for this claim."
+            ),
+            "matchedEvidence": None,
+            "rankedEvidence": ranked,
+        }
+
+    # ========================================================
+    # INTERPRET RATINGS
+    # ========================================================
+
+    evidence = []
+
+    for item in strong_matches:
+
+        category = interpret_rating(
+            item.get("rating")
+        )
+
+        if category != "UNKNOWN":
+
+            evidence.append({
+                **item,
+                "evidenceCategory": category,
+            })
+
+    # ========================================================
+    # STRONG CLAIM MATCH BUT UNKNOWN RATING
+    # ========================================================
+
+    if not evidence:
+
+        return {
+            "verdict": "NEEDS VERIFICATION",
+            "confidence": 40,
+            "reason": (
+                "A closely related fact-check was found, "
+                "but its publisher rating could not be "
+                "interpreted reliably."
+            ),
+            "matchedEvidence": strong_matches[0],
+            "rankedEvidence": ranked,
+        }
+
+    # ========================================================
+    # COUNT EVIDENCE
+    # ========================================================
+
+    false_count = sum(
+        1
+        for item in evidence
+        if item.get("evidenceCategory")
+        in {
+            "FALSE",
+            "MISLEADING",
+        }
+    )
+
+    supported_count = sum(
+        1
+        for item in evidence
+        if item.get("evidenceCategory")
+        in {
+            "SUPPORTED",
+            "PARTIALLY_SUPPORTED",
+        }
+    )
+
+    # ========================================================
+    # CONTRADICTION RELATIONSHIP
+    # ========================================================
+
+    contradiction_matches = [
+        item
+        for item in evidence
+        if item.get("relationship")
+        == "CONTRADICTS"
+    ]
+
+    # ========================================================
+    # FALSE / MISLEADING
+    # ========================================================
+
+    if (
+        false_count > supported_count
+    ):
+
+        strongest_score = (
+            evidence[0].get(
+                "matchScore",
+                0,
+            )
+        )
+
+        confidence = min(
+            65
+            + false_count * 8
+            + min(
+                max(
+                    strongest_score - 85,
+                    0,
+                ),
+                10,
+            ),
+            95,
+        )
+
+        # If the source directly contradicts
+        # the user's claim, make the reasoning explicit.
+        if contradiction_matches:
+
+            reason = (
+                "A closely matching published fact-check "
+                "contradicts the user's claim, and the "
+                "available publisher ratings classify the "
+                "fact-checked claim as false or misleading."
+            )
+
+        else:
+
+            reason = (
+                "A closely matching claim has been "
+                "previously fact-checked and the available "
+                "publishers rated it false or misleading."
+            )
+
+        return {
+            "verdict": "LIKELY FALSE / MISLEADING",
+            "confidence": round(
+                confidence
+            ),
+            "reason": reason,
+            "matchedEvidence": evidence[0],
+            "rankedEvidence": ranked,
+        }
+
+    # ========================================================
+    # SUPPORTED
+    # ========================================================
+
+    if (
+        supported_count > false_count
+    ):
+
+        strongest_score = (
+            evidence[0].get(
+                "matchScore",
+                0,
+            )
+        )
+
+        confidence = min(
+            65
+            + supported_count * 8
+            + min(
+                max(
+                    strongest_score - 85,
+                    0,
+                ),
+                10,
+            ),
+            95,
+        )
+
+        return {
+            "verdict": "SUPPORTED",
+            "confidence": round(
+                confidence
+            ),
+            "reason": (
+                "A closely matching claim has been "
+                "previously fact-checked and the available "
+                "publishers rated it as supported or accurate."
+            ),
+            "matchedEvidence": evidence[0],
+            "rankedEvidence": ranked,
+        }
+
+    # ========================================================
+    # CONFLICTING EVIDENCE
+    # ========================================================
+
+    return {
+        "verdict": "CONFLICTING EVIDENCE",
+        "confidence": 50,
+        "reason": (
+            "Closely matching fact-check sources contain "
+            "different assessments of the claim."
+        ),
+        "matchedEvidence": evidence[0],
+        "rankedEvidence": ranked,
+    }
     # ========================================================
     # NO STRONG EVIDENCE
     # ========================================================
@@ -908,6 +1207,15 @@ async def analyze_news(
             "matchType": item.get(
                 "matchType"
             ),
+
+            "relationship": item.get(
+                "relationship"
+                ),
+
+            "relationshipReason": item.get(
+                "relationshipReason"
+                ),
+            
 
             "reviewDate": item.get(
                 "review_date"
