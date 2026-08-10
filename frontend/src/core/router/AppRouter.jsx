@@ -16,38 +16,66 @@ import Fakenews from "../../pages/Fakenews";
 
 import PhoneIntelligencePage from "../../features/phone-intelligence/pages/PhoneIntelligencePage";
 
+import LoginPage from "../../features/auth/pages/LoginPage";
+import RegisterPage from "../../features/auth/pages/RegisterPage";
+
+import ProtectedRoute from "../../components/auth/ProtectedRoute";
+
 export default function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Landing */}
+
+        {/* ================= PUBLIC ================= */}
+
         <Route path="/" element={<LandingPage />} />
 
-        {/* Dashboard */}
-        <Route path="/dashboard" element={<DashboardPage />} />
-
-        {/* About */}
         <Route path="/about" element={<AboutFrost />} />
 
-        {/* Intelligence Modules */}
-        <Route path="/deepfake" element={<Deepfake />} />
+        <Route path="/login" element={<LoginPage />} />
 
-        <Route path="/news" element={<Fakenews />} />
+        <Route path="/register" element={<RegisterPage />} />
 
-        
-        {/* Chat page */}
-        <Route path="/chat" element={<ChatPage />} />
 
-        <Route
-          path="/phone"
-          element={<PhoneIntelligencePage />}
-        />
+        {/* ================= PROTECTED ================= */}
 
-        {/* Unknown route */}
+        <Route element={<ProtectedRoute />}>
+
+          <Route
+            path="/dashboard"
+            element={<DashboardPage />}
+          />
+
+          <Route
+            path="/deepfake"
+            element={<Deepfake />}
+          />
+
+          <Route
+            path="/news"
+            element={<Fakenews />}
+          />
+
+          <Route
+            path="/chat"
+            element={<ChatPage />}
+          />
+
+          <Route
+            path="/phone"
+            element={<PhoneIntelligencePage />}
+          />
+
+        </Route>
+
+
+        {/* ================= UNKNOWN ================= */}
+
         <Route
           path="*"
           element={<Navigate to="/" replace />}
         />
+
       </Routes>
     </BrowserRouter>
   );
