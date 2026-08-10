@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { MailCheck, RefreshCw, LogOut } from "lucide-react";
+import {
+  MailCheck,
+  RefreshCw,
+  LogOut,
+} from "lucide-react";
 
 import {
   logoutUser,
@@ -11,8 +15,8 @@ import {
 export default function EmailVerificationPage() {
   const navigate = useNavigate();
 
-  const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [sending, setSending] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -22,7 +26,9 @@ export default function EmailVerificationPage() {
 
   useEffect(() => {
     if (!userEmail) {
-      navigate("/login", { replace: true });
+      navigate("/login", {
+        replace: true,
+      });
     }
   }, [navigate, userEmail]);
 
@@ -35,7 +41,10 @@ export default function EmailVerificationPage() {
       const user = await refreshCurrentUser();
 
       if (!user) {
-        navigate("/login", { replace: true });
+        navigate("/login", {
+          replace: true,
+        });
+
         return;
       }
 
@@ -44,7 +53,10 @@ export default function EmailVerificationPage() {
           "frost_verification_email"
         );
 
-        navigate("/dashboard", { replace: true });
+        navigate("/dashboard", {
+          replace: true,
+        });
+
         return;
       }
 
@@ -67,7 +79,7 @@ export default function EmailVerificationPage() {
 
   const resendEmail = async () => {
     try {
-      setLoading(true);
+      setSending(true);
       setError("");
       setMessage("");
 
@@ -87,7 +99,7 @@ export default function EmailVerificationPage() {
         "auth/too-many-requests"
       ) {
         setError(
-          "Too many requests. Please wait a little before requesting another email."
+          "Too many requests. Please wait before requesting another email."
         );
       } else {
         setError(
@@ -95,7 +107,7 @@ export default function EmailVerificationPage() {
         );
       }
     } finally {
-      setLoading(false);
+      setSending(false);
     }
   };
 
@@ -107,9 +119,14 @@ export default function EmailVerificationPage() {
         "frost_verification_email"
       );
 
-      navigate("/login", { replace: true });
+      navigate("/login", {
+        replace: true,
+      });
     } catch (error) {
-      console.error("Logout error:", error);
+      console.error(
+        "Logout error:",
+        error
+      );
     }
   };
 
@@ -117,7 +134,6 @@ export default function EmailVerificationPage() {
     <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md">
 
-        {/* Icon */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-400/20 mb-4">
             <MailCheck className="w-9 h-9 text-cyan-400" />
@@ -127,7 +143,7 @@ export default function EmailVerificationPage() {
             Verify your email
           </h1>
 
-          <p className="text-slate-400 mt-3 leading-relaxed">
+          <p className="text-slate-400 mt-3">
             We've sent a verification link to
           </p>
 
@@ -138,7 +154,6 @@ export default function EmailVerificationPage() {
           )}
         </div>
 
-        {/* Card */}
         <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 sm:p-8 shadow-2xl">
 
           <p className="text-sm text-slate-400 leading-relaxed mb-6">
@@ -147,21 +162,18 @@ export default function EmailVerificationPage() {
             email, return here and click the button below.
           </p>
 
-          {/* Error */}
           {error && (
             <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300 mb-4">
               {error}
             </div>
           )}
 
-          {/* Success */}
           {message && (
             <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-300 mb-4">
               {message}
             </div>
           )}
 
-          {/* Check */}
           <button
             type="button"
             onClick={checkVerification}
@@ -173,22 +185,21 @@ export default function EmailVerificationPage() {
               : "I've verified my email"}
           </button>
 
-          {/* Resend */}
           <button
             type="button"
             onClick={resendEmail}
-            disabled={loading}
+            disabled={sending}
             className="w-full mt-3 rounded-xl border border-slate-700 bg-slate-950/50 py-3.5 font-medium text-slate-300 transition hover:border-cyan-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
             <span className="inline-flex items-center justify-center gap-2">
               <RefreshCw className="w-4 h-4" />
-              {loading
+
+              {sending
                 ? "Sending..."
                 : "Resend verification email"}
             </span>
           </button>
 
-          {/* Logout */}
           <button
             type="button"
             onClick={handleLogout}
@@ -199,7 +210,6 @@ export default function EmailVerificationPage() {
           </button>
         </div>
 
-        {/* Back */}
         <div className="text-center mt-6">
           <Link
             to="/"
