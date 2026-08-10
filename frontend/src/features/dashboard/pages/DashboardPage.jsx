@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, ArrowLeft } from "lucide-react";
 
 import AppShell from "../../../components/layouts/AppShell/AppShell";
 import ModuleGrid from "../components/ModuleGrid";
@@ -9,6 +9,17 @@ export default function DashboardPage() {
 
   return (
     <AppShell>
+      {/* Back to Landing Page */}
+      <button
+        type="button"
+        onClick={() => navigate("/")}
+        className="mb-6 flex items-center gap-2 text-sm font-medium text-slate-400 transition-colors hover:text-white"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to Home
+      </button>
+
+      {/* Dashboard Modules */}
       <ModuleGrid />
 
       {/* FROST AI */}
