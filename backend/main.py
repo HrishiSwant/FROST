@@ -13,6 +13,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from app.api.phone import router as phone_router
+from app.api.truecaller import router as truecaller_router
 from app.api.news import router as news_router
 from app.api.news_sources import router as news_sources_router
 from app.api.deepfake import router as deepfake_router
@@ -39,6 +40,7 @@ app = FastAPI(
 # ================= API ROUTERS =================
 
 app.include_router(phone_router)
+app.include_router(truecaller_router)
 app.include_router(news_router)
 app.include_router(news_sources_router)
 app.include_router(deepfake_router)
