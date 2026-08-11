@@ -20,6 +20,7 @@ import LoginPage from "../../features/auth/pages/LoginPage";
 import RegisterPage from "../../features/auth/pages/RegisterPage";
 import EmailVerificationPage from "../../features/auth/pages/EmailVerificationPage";
 import ProtectedRoute from "../../components/auth/ProtectedRoute";
+import ForgotPasswordPage from "../../features/auth/pages/ForgotPasswordPage";
 
 export default function AppRouter() {
   return (
@@ -37,6 +38,8 @@ export default function AppRouter() {
         <Route path="/register" element={<RegisterPage />} />
 
         <Route path="/verify-email" element={<EmailVerificationPage />} />
+
+        <Route path="/forgot-password" element={<ForgotPasswordPage />}/>
 
 
         {/* ================= PROTECTED ================= */}
