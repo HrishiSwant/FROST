@@ -1,5 +1,8 @@
 import logging
 import os
+from app.services.truecaller.firebase_auth_service import (
+    create_truecaller_firebase_token,
+)
 
 from fastapi import APIRouter, BackgroundTasks, Request
 
@@ -294,6 +297,9 @@ async def truecaller_status(
     """
     Frontend polls this endpoint to determine
     whether verification has completed.
+
+    Once Truecaller verification is completed,
+    a Firebase custom token is returned.
     """
 
     try:
@@ -310,8 +316,95 @@ async def truecaller_status(
                 status_code=404,
             )
 
+        status = result.get("status")
+
+        # ---------------------------------------------
+        # Still waiting
+        # ---------------------------------------------
+
+        if status in {
+            "initiated",
+            "flow_invoked",
+            "processing",
+        }:
+            return success_response(
+                {
+                    "request_id": request_id,
+                    "status": status,
+                }
+            )
+
+        # ---------------------------------------------
+        # Rejected
+        # ---------------------------------------------
+
+        if status == "user_rejected":
+            return success_response(
+                {
+                    "request_id": request_id,
+                    "status": "user_rejected",
+                }
+            )
+
+        # ---------------------------------------------
+        # Failed
+        # ---------------------------------------------
+
+        if status == "failed":
+            return success_response(
+                {
+                    "request_id": request_id,
+                    "status": "failed",
+                    "error": result.get(
+                        "error"
+                    ),
+                }
+            )
+
+        # ---------------------------------------------
+        # Completed
+        # ---------------------------------------------
+
+        if status == "completed":
+
+            profile = result.get(
+                "profile"
+            )
+
+            if not profile:
+                return error_response(
+                    message=(
+                        "Verified profile is missing."
+                    ),
+                    status_code=500,
+                )
+
+            firebase_auth = (
+                create_truecaller_firebase_token(
+                    profile
+                )
+            )
+
+            return success_response(
+                {
+                    "request_id": request_id,
+                    "status": "completed",
+                    "firebase": firebase_auth,
+                    "profile": profile,
+                }
+            )
+
         return success_response(
-            result
+            {
+                "request_id": request_id,
+                "status": status,
+            }
+        )
+
+    except ValueError as exc:
+        return error_response(
+            message=str(exc),
+            status_code=400,
         )
 
     except RuntimeError as exc:
