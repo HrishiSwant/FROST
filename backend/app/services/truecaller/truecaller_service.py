@@ -1,5 +1,4 @@
 import logging
-import os
 import secrets
 from datetime import datetime, timedelta, timezone
 
@@ -196,30 +195,66 @@ def store_profile(
 
     name = profile.get("name") or {}
 
+    phone_numbers = profile.get(
+        "phoneNumbers",
+        [],
+    )
+
+    normalized_phone_numbers = []
+
+    for phone_entry in phone_numbers:
+
+        if isinstance(phone_entry, str):
+            normalized_phone_numbers.append(
+                phone_entry
+            )
+
+        elif isinstance(phone_entry, dict):
+
+            number = (
+                phone_entry.get("number")
+                or phone_entry.get("phoneNumber")
+            )
+
+            if number:
+                normalized_phone_numbers.append(
+                    number
+                )
+
+    addresses = profile.get(
+        "addresses",
+        [],
+    )
+
+    first_address = (
+        addresses[0]
+        if addresses
+        else {}
+    )
+
+    online_identities = profile.get(
+        "onlineIdentities",
+        {},
+    )
+
     safe_profile = {
-        "phone_numbers": profile.get(
-            "phoneNumbers",
-            [],
-        ),
+        "phone_numbers": normalized_phone_numbers,
+
         "name": {
             "first": name.get("first"),
             "last": name.get("last"),
         },
-        "email": (
-            profile.get("onlineIdentities", {})
-            .get("email")
+
+        "email": online_identities.get(
+            "email"
         ),
-        "city": (
-            profile.get("addresses", [{}])[0]
-            .get("city")
-            if profile.get("addresses")
-            else None
+
+        "city": first_address.get(
+            "city"
         ),
-        "country_code": (
-            profile.get("addresses", [{}])[0]
-            .get("countryCode")
-            if profile.get("addresses")
-            else None
+
+        "country_code": first_address.get(
+            "countryCode"
         ),
     }
 
