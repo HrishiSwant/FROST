@@ -13,6 +13,5 @@ opencv-python-headless==4.13.0.92
 joblib
 httpx
 pymongo
-slowapicd ..
 groq
 firebase-admin==7.5.0
