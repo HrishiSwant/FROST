@@ -1,9 +1,9 @@
 import logging
+import os
 
 from fastapi import APIRouter, BackgroundTasks, Request
 
 from app.core.news_dependencies import db
-
 from app.core.responses import (
     success_response,
     error_response,
@@ -19,8 +19,6 @@ from app.services.truecaller.truecaller_service import (
     mark_failed,
     get_verification_status,
 )
-
-import os
 
 
 logger = logging.getLogger(__name__)
@@ -61,7 +59,7 @@ def process_truecaller_profile(
             request_id,
         )
 
-    except Exception as exc:
+    except Exception:
         logger.exception(
             "Truecaller profile fetch failed: %s",
             request_id,
@@ -73,6 +71,10 @@ def process_truecaller_profile(
             message="Truecaller profile verification failed.",
         )
 
+
+# =========================================================
+# START TRUECALLER VERIFICATION
+# =========================================================
 
 @router.post("/start")
 async def start_truecaller_verification():
@@ -92,8 +94,8 @@ async def start_truecaller_verification():
 
         ensure_indexes(db)
 
-        request_nonce = (
-            create_verification_request(db)
+        request_nonce = create_verification_request(
+            db
         )
 
         app_key = os.getenv(
@@ -133,10 +135,16 @@ async def start_truecaller_verification():
         )
 
         return error_response(
-            message="Unable to start Truecaller verification.",
+            message=(
+                "Unable to start Truecaller verification."
+            ),
             status_code=500,
         )
 
+
+# =========================================================
+# TRUECALLER CALLBACK
+# =========================================================
 
 @router.post("/callback")
 async def truecaller_callback(
@@ -147,6 +155,7 @@ async def truecaller_callback(
     Receive Truecaller verification callbacks.
 
     Truecaller may send:
+
     1. flow_invoked
     2. accessToken + endpoint
     3. user_rejected
@@ -167,15 +176,11 @@ async def truecaller_callback(
             .lower()
         )
 
-        if (
-            "application/json"
-            in content_type
-        ):
+        if "application/json" in content_type:
             payload = await request.json()
 
         else:
             form = await request.form()
-
             payload = dict(form)
 
         request_id = payload.get(
@@ -188,15 +193,18 @@ async def truecaller_callback(
 
         if not request_id:
             return error_response(
-                message="Truecaller request ID is missing.",
+                message=(
+                    "Truecaller request ID is missing."
+                ),
                 status_code=400,
             )
 
-        # ---------------------------------
+        # -------------------------------------------------
         # Flow invoked
-        # ---------------------------------
+        # -------------------------------------------------
 
         if status == "flow_invoked":
+
             update_flow_invoked(
                 db=db,
                 request_id=request_id,
@@ -209,11 +217,12 @@ async def truecaller_callback(
                 }
             )
 
-        # ---------------------------------
+        # -------------------------------------------------
         # User rejected verification
-        # ---------------------------------
+        # -------------------------------------------------
 
         if status == "user_rejected":
+
             mark_rejected(
                 db=db,
                 request_id=request_id,
@@ -226,9 +235,9 @@ async def truecaller_callback(
                 }
             )
 
-        # ---------------------------------
+        # -------------------------------------------------
         # Successful verification
-        # ---------------------------------
+        # -------------------------------------------------
 
         access_token = payload.get(
             "accessToken"
@@ -267,10 +276,16 @@ async def truecaller_callback(
         )
 
         return error_response(
-            message="Truecaller callback processing failed.",
+            message=(
+                "Truecaller callback processing failed."
+            ),
             status_code=500,
         )
 
+
+# =========================================================
+# VERIFICATION STATUS
+# =========================================================
 
 @router.get("/status/{request_id}")
 async def truecaller_status(
@@ -289,11 +304,15 @@ async def truecaller_status(
 
         if result is None:
             return error_response(
-                message="Verification request not found.",
+                message=(
+                    "Verification request not found."
+                ),
                 status_code=404,
             )
 
-        return success_response(result)
+        return success_response(
+            result
+        )
 
     except RuntimeError as exc:
         return error_response(
@@ -307,6 +326,51 @@ async def truecaller_status(
         )
 
         return error_response(
-            message="Unable to retrieve verification status.",
+            message=(
+                "Unable to retrieve verification status."
+            ),
             status_code=500,
+        )
+
+
+# =========================================================
+# FIREBASE ADMIN CONFIGURATION CHECK
+# TEMPORARY DIAGNOSTIC ENDPOINT
+# =========================================================
+
+@router.get("/firebase-status")
+async def firebase_status():
+    """
+    Temporary diagnostic endpoint.
+
+    Confirms that Firebase Admin can initialize
+    correctly on the Render backend.
+
+    Remove this endpoint after verification.
+    """
+
+    try:
+        from app.core.firebase_admin import (
+            firebase_admin_app,
+        )
+
+        return success_response(
+            {
+                "configured": True,
+                "project_id": (
+                    firebase_admin_app.project_id
+                ),
+            }
+        )
+
+    except Exception:
+        logger.exception(
+            "Firebase Admin configuration check failed"
+        )
+
+        return error_response(
+            message=(
+                "Firebase Admin is not configured correctly."
+            ),
+            status_code=503,
         )
