@@ -13,7 +13,7 @@ router = APIRouter(
 @router.post("/check")
 async def phone_check(request: Request, data: PhoneInput):
     try:
-        result = analyze_phone(data.phone)
+        result = await analyze_phone(data.phone)
         return success_response(result)
 
     except ValueError as e:
