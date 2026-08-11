@@ -1,4 +1,5 @@
 import { useState } from "react";
+
 import {
   Link,
   useLocation,
@@ -18,6 +19,9 @@ import {
   loginWithGoogle,
 } from "../../../services/auth/authService";
 
+import TruecallerButton from "../components/TruecallerButton";
+
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -36,6 +40,7 @@ export default function LoginPage() {
   const redirectPath =
     location.state?.from || "/dashboard";
 
+
   /*
    * Email / Password Login
    */
@@ -50,6 +55,7 @@ export default function LoginPage() {
       setError(
         "Please enter your email and password."
       );
+
       return;
     }
 
@@ -94,6 +100,7 @@ export default function LoginPage() {
       navigate(redirectPath, {
         replace: true,
       });
+
     } catch (error) {
       console.error(
         "Login error:",
@@ -132,10 +139,12 @@ export default function LoginPage() {
             "Unable to sign in right now. Please try again."
           );
       }
+
     } finally {
       setLoading(false);
     }
   };
+
 
   /*
    * Google Login
@@ -149,10 +158,6 @@ export default function LoginPage() {
 
       const user = await loginWithGoogle();
 
-      /*
-       * Google accounts are already
-       * authenticated by Google.
-       */
       localStorage.removeItem(
         "frost_verification_email"
       );
@@ -165,6 +170,7 @@ export default function LoginPage() {
       navigate(redirectPath, {
         replace: true,
       });
+
     } catch (error) {
       console.error(
         "Google login error:",
@@ -207,19 +213,65 @@ export default function LoginPage() {
             "Unable to sign in with Google. Please try again."
           );
       }
+
     } finally {
       setLoading(false);
     }
   };
 
+
+  /*
+   * Truecaller Login
+   */
+  const handleTruecallerSuccess = (
+    profile
+  ) => {
+    console.log(
+      "Truecaller verification successful:",
+      profile
+    );
+
+    /*
+     * IMPORTANT:
+     *
+     * At this stage Truecaller has verified
+     * the user's phone/profile.
+     *
+     * We are NOT automatically creating a
+     * Firebase account yet.
+     *
+     * We'll connect the verified identity
+     * to FROST authentication in the next step.
+     */
+    navigate(redirectPath, {
+      replace: true,
+      state: {
+        truecallerVerified: true,
+        truecallerProfile: profile,
+      },
+    });
+  };
+
+
+  const handleTruecallerError = (
+    message
+  ) => {
+    setError(message);
+  };
+
+
   return (
     <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center px-4 py-10">
+
       <div className="w-full max-w-md">
 
         {/* Logo */}
         <div className="text-center mb-8">
+
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-400/20 mb-4">
+
             <ShieldCheck className="w-9 h-9 text-cyan-400" />
+
           </div>
 
           <h1 className="text-3xl font-semibold">
@@ -229,25 +281,30 @@ export default function LoginPage() {
           <p className="text-slate-400 mt-2">
             Sign in to your FROST account
           </p>
+
         </div>
+
 
         {/* Card */}
         <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 sm:p-8 shadow-2xl">
 
+          {/* Error */}
+          {error && (
+            <div className="mb-5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              {error}
+            </div>
+          )}
+
+
+          {/* Email / Password */}
           <form
             onSubmit={handleSubmit}
             className="space-y-5"
           >
 
-            {/* Error */}
-            {error && (
-              <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-                {error}
-              </div>
-            )}
-
             {/* Email */}
             <div>
+
               <label
                 htmlFor="login-email"
                 className="block text-sm font-medium text-slate-300 mb-2"
@@ -256,6 +313,7 @@ export default function LoginPage() {
               </label>
 
               <div className="relative">
+
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
 
                 <input
@@ -269,14 +327,20 @@ export default function LoginPage() {
                   }
                   placeholder="you@example.com"
                   autoComplete="email"
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950/70 py-3.5 pl-12 pr-4 text-white placeholder-slate-600 outline-none transition focus:border-cyan-400"
+                  disabled={loading}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950/70 py-3.5 pl-12 pr-4 text-white placeholder-slate-600 outline-none transition focus:border-cyan-400 disabled:opacity-60"
                 />
+
               </div>
+
             </div>
+
 
             {/* Password */}
             <div>
+
               <div className="flex items-center justify-between mb-2">
+
                 <label
                   htmlFor="login-password"
                   className="block text-sm font-medium text-slate-300"
@@ -295,9 +359,12 @@ export default function LoginPage() {
                 >
                   Forgot password?
                 </button>
+
               </div>
 
+
               <div className="relative">
+
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
 
                 <input
@@ -315,8 +382,10 @@ export default function LoginPage() {
                   }
                   placeholder="Enter your password"
                   autoComplete="current-password"
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950/70 py-3.5 pl-12 pr-12 text-white placeholder-slate-600 outline-none transition focus:border-cyan-400"
+                  disabled={loading}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950/70 py-3.5 pl-12 pr-12 text-white placeholder-slate-600 outline-none transition focus:border-cyan-400 disabled:opacity-60"
                 />
+
 
                 <button
                   type="button"
@@ -338,8 +407,11 @@ export default function LoginPage() {
                     <Eye className="w-5 h-5" />
                   )}
                 </button>
+
               </div>
+
             </div>
+
 
             {/* Email / Password Login */}
             <button
@@ -351,10 +423,13 @@ export default function LoginPage() {
                 ? "Signing in..."
                 : "Sign in"}
             </button>
+
           </form>
+
 
           {/* Divider */}
           <div className="my-6 flex items-center gap-3">
+
             <div className="h-px flex-1 bg-slate-800" />
 
             <span className="text-xs uppercase tracking-wider text-slate-500">
@@ -362,16 +437,22 @@ export default function LoginPage() {
             </span>
 
             <div className="h-px flex-1 bg-slate-800" />
+
           </div>
 
-          {/* Google Login */}
+
+          {/* Google */}
           <button
             type="button"
-            onClick={handleGoogleLogin}
+            onClick={
+              handleGoogleLogin
+            }
             disabled={loading}
             className="w-full rounded-xl border border-slate-700 bg-slate-950/50 py-3.5 font-medium text-slate-200 transition hover:border-cyan-400 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
           >
+
             <span className="inline-flex items-center justify-center gap-3">
+
               <span className="text-lg font-semibold">
                 G
               </span>
@@ -379,32 +460,58 @@ export default function LoginPage() {
               {loading
                 ? "Signing in..."
                 : "Continue with Google"}
+
             </span>
+
           </button>
+
+
+          {/* Truecaller */}
+          <div className="mt-3">
+
+            <TruecallerButton
+              onSuccess={
+                handleTruecallerSuccess
+              }
+              onError={
+                handleTruecallerError
+              }
+            />
+
+          </div>
+
 
           {/* Register */}
           <div className="mt-7 text-center text-sm text-slate-400">
+
             Don't have an account?{" "}
+
             <Link
               to="/register"
               className="font-medium text-cyan-400 hover:text-cyan-300"
             >
               Create one
             </Link>
+
           </div>
+
         </div>
+
 
         {/* Back */}
         <div className="text-center mt-6">
+
           <Link
             to="/"
             className="text-sm text-slate-500 hover:text-slate-300 transition"
           >
             ← Back to FROST
           </Link>
+
         </div>
 
       </div>
+
     </div>
   );
 }
