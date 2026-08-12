@@ -18,7 +18,7 @@ from app.api.news import router as news_router
 from app.api.news_sources import router as news_sources_router
 from app.api.deepfake import router as deepfake_router
 from app.api.chat import router as chat_router
-
+from app.api.malware import router as malware_router
 
 # ================= ENV =================
 
@@ -45,6 +45,7 @@ app.include_router(news_router)
 app.include_router(news_sources_router)
 app.include_router(deepfake_router)
 app.include_router(chat_router)
+app.include_router(malware_router)
 
 
 # ================= CORS =================
