@@ -1,0 +1,32 @@
+.intel-section-header{
+  margin-bottom:20px;
+}
+
+.intel-section-title{
+  display:flex;
+  align-items:center;
+  gap:14px;
+}
+
+.intel-section-icon{
+  width:42px;
+  height:42px;
+  border-radius:12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(34,211,238,.12);
+  color:#22d3ee;
+}
+
+.intel-section-title h2{
+  margin:0;
+  font-size:22px;
+  font-weight:700;
+}
+
+.intel-section-title p{
+  margin-top:4px;
+  color:#94a3b8;
+  font-size:14px;
+}
