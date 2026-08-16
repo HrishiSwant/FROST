@@ -1,0 +1,38 @@
+.intel-chip{
+    display:inline-flex;
+    align-items:center;
+
+    padding:6px 12px;
+
+    border-radius:999px;
+
+    font-size:13px;
+
+    font-weight:600;
+
+    background:#1e293b;
+
+    color:#e2e8f0;
+
+    border:1px solid #334155;
+}
+
+.intel-chip.success{
+    background:#0f3d2f;
+    color:#4ade80;
+}
+
+.intel-chip.warning{
+    background:#4a3410;
+    color:#facc15;
+}
+
+.intel-chip.danger{
+    background:#4b1d1d;
+    color:#fb7185;
+}
+
+.intel-chip.info{
+    background:#082f49;
+    color:#38bdf8;
+}
