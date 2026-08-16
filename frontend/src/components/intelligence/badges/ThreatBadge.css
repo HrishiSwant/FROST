@@ -1,0 +1,52 @@
+.intel-threat-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+
+  padding:8px 14px;
+
+  border-radius:999px;
+
+  font-size:13px;
+
+  font-weight:700;
+
+  letter-spacing:.5px;
+
+  border:1px solid transparent;
+}
+
+.safe{
+  background:#0f3d2f;
+  color:#34d399;
+  border-color:#34d39944;
+}
+
+.low{
+  background:#143d2d;
+  color:#4ade80;
+  border-color:#4ade8044;
+}
+
+.medium{
+  background:#4a3410;
+  color:#facc15;
+  border-color:#facc1544;
+}
+
+.high{
+  background:#4b1d1d;
+  color:#fb923c;
+  border-color:#fb923c44;
+}
+
+.critical{
+  background:#450a0a;
+  color:#ef4444;
+  border-color:#ef444444;
+}
+
+.unknown{
+  background:#1e293b;
+  color:#cbd5e1;
+}
