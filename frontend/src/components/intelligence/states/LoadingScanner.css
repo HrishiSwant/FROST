@@ -1,0 +1,47 @@
+.intel-loading{
+
+padding:60px;
+
+display:flex;
+
+flex-direction:column;
+
+align-items:center;
+
+gap:18px;
+
+}
+
+.intel-loader{
+
+width:60px;
+
+height:60px;
+
+border-radius:50%;
+
+border:5px solid #1e293b;
+
+border-top:5px solid #22d3ee;
+
+animation:spin 1s linear infinite;
+
+}
+
+@keyframes spin{
+
+to{
+
+transform:rotate(360deg);
+
+}
+
+}
+
+.intel-loading p{
+
+color:#94a3b8;
+
+text-align:center;
+
+}
