@@ -1,0 +1,43 @@
+.intel-empty{
+
+display:flex;
+
+flex-direction:column;
+
+align-items:center;
+
+justify-content:center;
+
+text-align:center;
+
+padding:70px 20px;
+
+color:#94a3b8;
+
+}
+
+.intel-empty svg{
+
+margin-bottom:20px;
+
+color:#22d3ee;
+
+}
+
+.intel-empty h2{
+
+margin-bottom:12px;
+
+font-size:26px;
+
+color:white;
+
+}
+
+.intel-empty p{
+
+max-width:550px;
+
+line-height:1.8;
+
+}
