@@ -1,37 +1,31 @@
-.intel-page{
+.intel-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 
-max-width:1400px;
+  margin-bottom: 24px;
 
-margin:auto;
+  padding: 10px 18px;
 
-padding:30px;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 10px;
 
+  background: rgba(15, 23, 42, 0.6);
+
+  color: #cbd5e1;
+
+  cursor: pointer;
+
+  transition: all 0.25s ease;
 }
 
-.intel-header{
-
-margin-bottom:30px;
-
+.intel-back-button:hover {
+  background: rgba(34, 211, 238, 0.12);
+  border-color: #22d3ee;
+  color: white;
+  transform: translateX(-3px);
 }
 
-.intel-header h1{
-
-font-size:34px;
-
-font-weight:700;
-
-margin-bottom:10px;
-
-}
-
-.intel-header p{
-
-color:#94a3b8;
-
-font-size:16px;
-
-line-height:1.7;
-
-max-width:800px;
-
+.intel-back-button svg {
+  flex-shrink: 0;
 }
