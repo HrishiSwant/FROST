@@ -15,6 +15,7 @@ import Deepfake from "../../pages/Deepfake";
 import Fakenews from "../../pages/Fakenews";
 
 import PhoneIntelligencePage from "../../features/phone-intelligence/pages/PhoneIntelligencePage";
+import MalwareIntelligencePage from "../../features/malware/pages/MalwareIntelligencePage";
 
 import LoginPage from "../../features/auth/pages/LoginPage";
 import RegisterPage from "../../features/auth/pages/RegisterPage";
@@ -39,8 +40,10 @@ export default function AppRouter() {
 
         <Route path="/verify-email" element={<EmailVerificationPage />} />
 
-        <Route path="/forgot-password" element={<ForgotPasswordPage />}/>
-
+        <Route
+          path="/forgot-password"
+          element={<ForgotPasswordPage />}
+        />
 
         {/* ================= PROTECTED ================= */}
 
@@ -49,6 +52,11 @@ export default function AppRouter() {
           <Route
             path="/dashboard"
             element={<DashboardPage />}
+          />
+
+          <Route
+            path="/malware"
+            element={<MalwareIntelligencePage />}
           />
 
           <Route
@@ -72,7 +80,6 @@ export default function AppRouter() {
           />
 
         </Route>
-
 
         {/* ================= UNKNOWN ================= */}
 
