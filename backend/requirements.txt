@@ -16,3 +16,4 @@ pymongo
 groq
 firebase-admin==7.5.0
 slowapi
+python-whois
