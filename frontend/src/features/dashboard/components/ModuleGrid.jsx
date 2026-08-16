@@ -31,13 +31,13 @@ const modules = [
   },
 
   {
-    title: "Malware Intelligence",
-    description:
-      "Analyze URLs and malware indicators using VirusTotal AI.",
-    button: "Open Module",
-    route: "/intelligence/malware",
-    available: true,
-  },
+  title: "Malware Intelligence",
+  description:
+    "Analyze URLs and malware indicators using VirusTotal AI.",
+  button: "Open Module",
+  route: "/malware",
+  available: true,
+},
 
   // ===== Coming Soon =====
 
