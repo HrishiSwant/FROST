@@ -1,0 +1,37 @@
+.intel-page{
+
+max-width:1400px;
+
+margin:auto;
+
+padding:30px;
+
+}
+
+.intel-header{
+
+margin-bottom:30px;
+
+}
+
+.intel-header h1{
+
+font-size:34px;
+
+font-weight:700;
+
+margin-bottom:10px;
+
+}
+
+.intel-header p{
+
+color:#94a3b8;
+
+font-size:16px;
+
+line-height:1.7;
+
+max-width:800px;
+
+}
