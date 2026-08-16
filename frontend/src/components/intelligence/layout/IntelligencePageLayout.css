@@ -1,31 +1,94 @@
+.intel-page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* ============================
+   Back Button
+============================ */
+
 .intel-back-button {
+  width: fit-content;
+
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 
-  margin-bottom: 24px;
-
-  padding: 10px 18px;
+  padding: 12px 20px;
 
   border: 1px solid rgba(56, 189, 248, 0.25);
-  border-radius: 10px;
+  border-radius: 12px;
 
-  background: rgba(15, 23, 42, 0.6);
+  background: rgba(15, 23, 42, 0.65);
 
-  color: #cbd5e1;
+  color: #d7e3f4;
 
   cursor: pointer;
 
-  transition: all 0.25s ease;
+  transition: all .25s ease;
 }
 
 .intel-back-button:hover {
-  background: rgba(34, 211, 238, 0.12);
+  background: rgba(34, 211, 238, .10);
   border-color: #22d3ee;
   color: white;
-  transform: translateX(-3px);
+  transform: translateX(-4px);
 }
 
 .intel-back-button svg {
   flex-shrink: 0;
+}
+
+/* ============================
+   Header
+============================ */
+
+.intel-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.intel-header h1 {
+  margin: 0;
+
+  font-size: 42px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.intel-header p {
+  margin: 0;
+
+  max-width: 760px;
+
+  color: #94a3b8;
+
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+/* ============================
+   Responsive
+============================ */
+
+@media (max-width:768px) {
+
+  .intel-page {
+    padding: 22px;
+    gap: 24px;
+  }
+
+  .intel-header h1 {
+    font-size: 32px;
+  }
+
+  .intel-header p {
+    font-size: 16px;
+  }
+
 }
