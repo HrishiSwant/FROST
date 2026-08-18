@@ -4,214 +4,134 @@ Version: 1.0
 
 ---
 
-# 1. Architecture Overview
+# 1. Purpose
 
-FROST follows a Feature-Based Architecture combined with Shared Components.
+This document defines the overall architecture of FROST.
 
-The objective is to keep every intelligence module independent while allowing the application to reuse common layouts, UI components and utilities.
+Every future feature, module and backend service should follow the architecture described here.
 
-The architecture emphasizes:
-
-- Scalability
-- Maintainability
-- Separation of Concerns
-- Code Reusability
-- Production Readiness
+The goal is to keep the project scalable, maintainable and easy to extend.
 
 ---
 
-# 2. High Level Architecture
+# 2. High-Level Architecture
 
+```
                     User
                       │
                       ▼
-             React Application
+            React Frontend (Vite)
                       │
+         ┌────────────┴────────────┐
+         │                         │
+         ▼                         ▼
+ Shared Components          Feature Modules
+         │                         │
+         └────────────┬────────────┘
                       ▼
-                React Router
-                      │
-                      ▼
-                  Feature Pages
-                      │
-          ┌───────────┴───────────┐
-          │                       │
-          ▼                       ▼
- Shared Components          Feature Components
-          │                       │
-          └───────────┬───────────┘
-                      ▼
-                API Layer
+                 API Layer
                       │
                       ▼
               Express Backend
                       │
-                      ▼
-                 MongoDB Database
+          ┌───────────┴───────────┐
+          ▼                       ▼
+     External APIs            MongoDB
+```
 
 ---
 
 # 3. Frontend Architecture
 
-Frontend is divided into two major areas.
+The frontend follows a Feature-Based Architecture.
 
-components/
+Each feature is isolated from every other feature.
 
-Contains reusable UI.
+Example:
+
+frontend/
+
+features/
+
+malware/
+
+phone/
+
+media/
+
+analytics/
+
+settings/
+
+Each feature owns its own:
+
+- Pages
+- Components
+- Hooks
+- API
+- Utilities
+
+---
+
+# 4. Shared Components
+
+Components used by multiple modules belong inside:
+
+frontend/src/components/
 
 Examples
 
 - AppShell
 - Sidebar
 - Topbar
-- Cards
-- Buttons
-- Layouts
-- Shared States
-
-These components must not contain feature-specific business logic.
-
----
-
-features/
-
-Contains application features.
-
-Example
-
-features/
-
-    malware/
-
-    media/
-
-    phone/
-
-    analytics/
-
-    settings/
-
-Every feature is independent.
-
-Each feature owns:
-
-- UI
-- API calls
-- Hooks
-- Utilities
-- Pages
-- Components
-
----
-
-# 4. Feature Structure
-
-Every feature should follow this structure.
-
-feature/
-
-    api/
-
-    components/
-
-    hooks/
-
-    pages/
-
-    utils/
-
-Example
-
-malware/
-
-    api/
-
-        malwareApi.js
-
-    hooks/
-
-        useMalwareAnalysis.js
-
-    components/
-
-        MalwareForm.jsx
-
-        MalwareReport.jsx
-
-        cards/
-
-    pages/
-
-        MalwareIntelligencePage.jsx
-
----
-
-# 5. Shared Components
-
-Anything reused by two or more modules should become a shared component.
-
-Examples
-
-Shared Layouts
-
 - IntelligencePageLayout
-
-Shared Cards
-
+- ReportGrid
 - SectionCard
-
-Shared States
-
 - EmptyState
-
 - LoadingScanner
 
-Shared Layout Helpers
-
-- ReportGrid
-
-Future reusable components should be placed here before creating duplicate code.
+Shared components must never contain feature-specific business logic.
 
 ---
 
-# 6. Page Flow
+# 5. Feature Structure
 
-Every new intelligence module follows the same flow.
+Every feature should follow the same folder structure whenever applicable.
 
-User
+Example
 
-↓
+features/
 
-Dashboard
+feature-name/
 
-↓
+api/
 
-Module Page
+components/
 
-↓
+hooks/
 
-Input Form
+pages/
 
-↓
+utils/
 
-Backend Request
+styles/
 
-↓
+Benefits
 
-API Response
-
-↓
-
-Shared Report Components
-
-↓
-
-Finished Report
+- Easy navigation
+- Independent modules
+- Reusable logic
+- Easier testing
 
 ---
 
-# 7. Backend Architecture
+# 6. Backend Architecture
 
-Backend follows layered architecture.
+The backend follows a layered architecture.
+
+Client
+
+↓
 
 Routes
 
@@ -225,34 +145,238 @@ Services
 
 ↓
 
-External APIs
+Database / External APIs
 
-↓
+Responsibilities
+
+Routes
+- Handle HTTP endpoints.
+
+Controllers
+- Validate requests.
+- Return responses.
+
+Services
+- Business logic.
+- AI integrations.
+- Threat analysis.
 
 Database
-
-Routes only receive requests.
-
-Controllers validate requests.
-
-Services perform business logic.
-
-Database stores persistent information.
+- Persistent storage.
 
 ---
 
-# 8. Database Layer
+# 7. Database Architecture
 
-MongoDB stores:
+MongoDB is the primary database.
 
-Users
+Collections should remain independent.
 
-Analytics
+Example
 
-Settings
+users
 
-Reports
+analytics
 
-Saved Investigations
+settings
 
-Future collections will follow the same pattern.
+reports
+
+notifications
+
+Each collection should have a clearly defined responsibility.
+
+Avoid storing unrelated data together.
+
+---
+
+# 8. API Layer
+
+The frontend never communicates directly with external services.
+
+Flow
+
+Frontend
+
+↓
+
+Frontend API Layer
+
+↓
+
+Express Backend
+
+↓
+
+VirusTotal
+
+WHOIS
+
+AI Services
+
+MongoDB
+
+This keeps API keys secure.
+
+---
+
+# 9. State Management
+
+Current
+
+React Hooks
+
+Component State
+
+Future
+
+If application complexity grows significantly,
+
+consider introducing Context API or Zustand.
+
+Do not introduce global state unless necessary.
+
+---
+
+# 10. UI Architecture
+
+Every page follows
+
+AppShell
+
+↓
+
+Content
+
+↓
+
+Page Layout
+
+↓
+
+Feature Components
+
+Original modules may use their existing layouts.
+
+New modules should use
+
+IntelligencePageLayout
+
+unless another shared layout is introduced.
+
+---
+
+# 11. Shared Component Philosophy
+
+Before creating a new component, ask:
+
+Can an existing shared component solve this?
+
+If yes
+
+Reuse it.
+
+If no
+
+Create a reusable shared component if it is expected to be used by multiple features.
+
+Otherwise
+
+Keep it inside the feature.
+
+---
+
+# 12. Error Handling
+
+Frontend
+
+Display meaningful error messages.
+
+Backend
+
+Return consistent JSON responses.
+
+Example
+
+{
+  "success": false,
+  "message": "Invalid URL"
+}
+
+Avoid exposing stack traces to users.
+
+---
+
+# 13. Scalability Principles
+
+The architecture should allow:
+
+Adding new intelligence modules.
+
+Replacing AI providers.
+
+Replacing databases.
+
+Supporting enterprise authentication.
+
+Supporting teams.
+
+Supporting reports.
+
+Supporting analytics.
+
+Without major rewrites.
+
+---
+
+# 14. Future Expansion
+
+Planned architectural additions
+
+Authentication Service
+
+Notification Service
+
+Analytics Service
+
+Reporting Engine
+
+Role-Based Access Control
+
+Audit Logs
+
+API Gateway
+
+Each should be implemented as an independent module.
+
+---
+
+# 15. Architecture Rules
+
+Always prefer
+
+✔ Modular design
+
+✔ Reusable components
+
+✔ Shared utilities
+
+✔ Clear separation of concerns
+
+Avoid
+
+✘ Duplicate code
+
+✘ Massive components
+
+✘ Direct external API calls from the frontend
+
+✘ Tight coupling between features
+
+---
+
+# 16. Final Principle
+
+Every new feature added to FROST should improve the overall architecture rather than make it more complex.
+
+Scalability and maintainability take priority over quick implementations.
